@@ -286,7 +286,7 @@ public:
     void UiFontSize(int index);   // 0 small 90%, 1 default 100%, 2 large 112%, 3 larger 125%
     void TrayIconSize(int index);
     void DoubleCtrlGap(int index);   // 连按间隔: 200 / 300 / 400 ms
-    // Settings sliders: 0 interface transparency (0..90), 1 wallpaper blur (0..40),
+    // Settings sliders: 0 interface transparency (0..100), 1 wallpaper blur (0..40),
     // 2..4 custom accent hue (0..360), saturation and lightness (0..100).
     // Values apply live while dragging; EndSlider saves once.
     void BeginSlider(int which) noexcept { slider_drag_ = which; }

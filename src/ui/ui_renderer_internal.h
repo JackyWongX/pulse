@@ -119,7 +119,7 @@ void ClearTextWidthCache() {
     inline float WallpaperBlurDip(int wallpaper_blur) noexcept {
         return static_cast<float>(std::clamp(wallpaper_blur, 0, 40));
     }
-    constexpr int kPanelTransparencyMax = 90;
+    constexpr int kPanelTransparencyMax = 100;
     constexpr int kWallpaperBlurMax = 40;
     constexpr int kFrameTransparencyMax = 100;
     // Settings slider track inside the three segment cells the layout reserves;

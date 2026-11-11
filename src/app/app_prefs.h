@@ -191,7 +191,7 @@ struct AppPrefs {
     // Menus blur the window under them (WinUI in-app acrylic); see FluentMenu.
     bool menu_acrylic = true;
     std::wstring background_image;
-    // Interface transparency 0..90 (json panel_transparency). 25/50/75 match the
+    // Interface transparency 0..100 (json panel_transparency). 25/50/75 match the
     // former subtle/balanced/vivid levels; applies to image, Acrylic and Mica.
     int wallpaper_look = 50;
     int wallpaper_blur = 14; // wallpaper blur in DIPs 0..40 (json wallpaper_blur_px)

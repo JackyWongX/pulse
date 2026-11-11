@@ -25,7 +25,7 @@ inline float LerpStops(float t, const float (&v)[5]) noexcept {
     const int i = (std::min)(3, static_cast<int>(t));
     return v[i] + (v[i + 1] - v[i]) * (t - static_cast<float>(i));
 }
-// transparency: 0..90 slider; 25/50/75 reproduce the former
+// transparency: 0..100 slider; 25/50/75 reproduce the former
 // subtle/balanced/vivid tables exactly.
 // frame: 侧边栏与标题栏 0..100 (AppPrefs::frame_transparency), only for
 // Acrylic / Mica: 10 gives what the three layers gave before it existed.
@@ -34,15 +34,18 @@ inline LayerAlphas ComputeLayerAlphas(bool image_mode, bool backdrop_drawn,
                                       int transparency, int wallpaper_blur,
                                       int frame = 10) noexcept {
     LayerAlphas a;
-    const float t = static_cast<float>(std::clamp(transparency, 0, 90)) / 100.0f;
+    const float t = static_cast<float>(std::clamp(transparency, 0, 100)) / 100.0f;
     if (image_mode) {
         // Decode failure stays opaque rather than exposing the desktop.
         if (!backdrop_drawn) return a;
+        // Keep the former 90% appearance, then fade all image scrims out to
+        // the unmodified wallpaper at the new 100% endpoint.
+        const float scrim_fade = std::clamp((1.0f - t) * 10.0f, 0.0f, 1.0f);
         // Dark wallpaper uses the legacy single scrim. Balanced restores
         // its 55% cover; blur affects image detail, not the tint strength.
         if (dark) {
             static constexpr float cover[5] = {0.85f, 0.70f, 0.55f, 0.40f, 0.25f};
-            return {LerpStops(t, cover), 0.0f, 0.0f};
+            return {LerpStops(t, cover) * scrim_fade, 0.0f, 0.0f};
         }
         // Light: the pane card stays thin so the middle reads about as
         // see-through as the dark scrim (60, unblurred: title 42%, sheet 46%,
@@ -59,6 +62,9 @@ inline LayerAlphas ComputeLayerAlphas(bool image_mode, bool backdrop_drawn,
             a.sheet = (std::min)(1.0f, a.sheet + 0.08f);
             a.card = (std::min)(1.0f, a.card + 0.06f);
         }
+        a.title *= scrim_fade;
+        a.sheet *= scrim_fade;
+        a.card *= scrim_fade;
         return a;
     }
     if (backdrop_drawn) a.title = 0.0f;
@@ -74,12 +80,12 @@ inline LayerAlphas ComputeLayerAlphas(bool image_mode, bool backdrop_drawn,
         };
         const float t0 = a.title;
         float s0 = 1.0f, c0 = 1.0f;
-        // The content: what the layers gave up to 60, then on to 80% at 90.
+        // The content: what the layers gave up to 60, then on to 80% at 100.
         float pane = stacked(t, s0, c0);
         if (t > 0.6f) {
             float s60 = 1.0f, c60 = 1.0f;
             const float p60 = stacked(0.6f, s60, c60);
-            pane = p60 + (0.80f - p60) * (t - 0.6f) / 0.3f;
+            pane = p60 + (0.80f - p60) * (t - 0.6f) / 0.4f;
         }
         a.pane_mix[0] = (1.0f - c0) * (1.0f - s0) * t0;
         a.pane_mix[1] = (1.0f - c0) * s0;

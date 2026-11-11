@@ -1092,7 +1092,7 @@ bool SettingsController::SliderValue(int which, int value) {
     if (!prefs_ || which < 0 || which > 1) return false;
     const bool snap = GetKeyState(VK_SHIFT) >= 0;
     int& target = which == 0 ? prefs_->wallpaper_look : prefs_->wallpaper_blur;
-    value = std::clamp(value, 0, which == 0 ? 90 : 40);
+    value = std::clamp(value, 0, which == 0 ? 100 : 40);
     if (snap) {
         static constexpr int kLook[] = {25, 50, 75};
         static constexpr int kBlur[] = {14, 28};

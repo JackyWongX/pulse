@@ -205,6 +205,19 @@ static int TagAdsOnly() {
     return failures ? 1 : 0;
 }
 int main(int argc, char** argv) {
+    if (argc == 2 && std::string_view(argv[1]) == "--panel-transparency") {
+        using pulse::app::AppPrefs;
+        AppPrefs prefs, reloaded;
+        prefs.persist = reloaded.persist = false;
+        Check(prefs.FromJson(LR"({"panel_transparency":100})") && prefs.wallpaper_look == 100,
+            "PANEL-TRANSPARENCY-01 accepts 100 percent");
+        Check(reloaded.FromJson(prefs.ToJson()) && reloaded.wallpaper_look == 100,
+            "PANEL-TRANSPARENCY-02 saves and reloads 100 percent");
+        AppPrefs invalid; invalid.persist = false;
+        Check(invalid.FromJson(LR"({"panel_transparency":101})") && invalid.wallpaper_look == 50,
+            "PANEL-TRANSPARENCY-03 rejects values above 100");
+        return failures ? 1 : 0;
+    }
     if (argc == 2 && std::string_view(argv[1]) == "--folder-bottom") {
         pulse::app::AppPrefs prefs, reloaded;
         Check(prefs.FromJson(LR"({"folder_sort_mode":1,"sort_folders_follow":["C:\\Legacy"],"sort_folders_top":["C:\\Top"],"sort_folders_mixed":["C:\\Mixed"]})") &&

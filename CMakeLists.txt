@@ -2126,6 +2126,7 @@ add_executable(pulse_window_overview_test src/bench/window_overview_test.cpp src
 # Multi-window M7f: one Ctrl+Shift+T timeline of closed tabs and windows (plan section 8.4).
 add_executable(pulse_closed_timeline_test src/bench/closed_timeline_test.cpp)
 target_include_directories(pulse_closed_timeline_test PRIVATE "${CMAKE_BINARY_DIR}/generated")
+add_executable(pulse_layer_alphas_test src/bench/layer_alphas_test.cpp)
 add_executable(pulse_render_cache_sharing_test src/bench/render_cache_sharing_test.cpp)
 target_link_libraries(pulse_render_cache_sharing_test PRIVATE user32 d3d11 d2d1)
 add_executable(pulse_shell_window_registry_retry_test src/bench/shell_window_registry_retry_test.cpp

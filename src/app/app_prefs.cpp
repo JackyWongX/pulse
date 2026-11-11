@@ -722,7 +722,7 @@ bool AppPrefs::FromJson(const std::wstring& json) {
         int legacy = pulse::json::ExtractInt(json, L"wallpaper_look", 1);
         if (legacy < 0 || legacy > 2) legacy = 1;
         wallpaper_look = pulse::json::ExtractInt(json, L"panel_transparency", kLookLevels[legacy]);
-        if (wallpaper_look < 0 || wallpaper_look > 90) wallpaper_look = kLookLevels[legacy];
+        if (wallpaper_look < 0 || wallpaper_look > 100) wallpaper_look = kLookLevels[legacy];
         legacy = pulse::json::ExtractInt(json, L"wallpaper_blur", 1);
         if (legacy < 0 || legacy > 2) legacy = 1;
         wallpaper_blur = pulse::json::ExtractInt(json, L"wallpaper_blur_px", kBlurLevels[legacy]);

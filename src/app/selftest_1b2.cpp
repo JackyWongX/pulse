@@ -3235,8 +3235,10 @@ void TestLayerAlphas() {
     }
     Check(same, L"layers: 侧边栏与标题栏 at 10 gives the old title, sheet and card up to 60");
     Check(mixed, L"layers: a cut-through pane card has the old stacked opacity and colour weights");
-    const ui::LayerAlphas vivid = ui::ComputeLayerAlphas(false, false, true, false, 90, 14, 10);
-    Check(close_to(vivid.pane, 0.80f), L"layers: interface transparency 90 leaves the file list 80% opaque");
+    const ui::LayerAlphas vivid90 = ui::ComputeLayerAlphas(false, false, true, false, 90, 14, 10);
+    const ui::LayerAlphas vivid100 = ui::ComputeLayerAlphas(false, false, true, false, 100, 14, 10);
+    Check(vivid90.pane < vivid100.pane && close_to(vivid100.pane, 0.80f),
+          L"layers: interface transparency reaches its 80% pane opacity endpoint at 100");
     const auto side = [](const ui::LayerAlphas& a) { return 1.0f - (1.0f - a.title) * (1.0f - a.sheet); };
     const ui::LayerAlphas solid = ui::ComputeLayerAlphas(false, false, true, false, 50, 14, 0);
     Check(close_to(solid.title, 1.0f) && close_to(solid.sheet, 1.0f) && close_to(solid.card, 1.0f),
@@ -3260,10 +3262,17 @@ void TestLayerAlphas() {
     Check(falling, L"layers: the sidebar clears steadily; the file list and Settings cards never get thinner");
     const ui::LayerAlphas image = ui::ComputeLayerAlphas(true, true, true, false, 50, 14, 100);
     const ui::LayerAlphas image10 = ui::ComputeLayerAlphas(true, true, true, false, 50, 14, 10);
+    const ui::LayerAlphas image100 = ui::ComputeLayerAlphas(true, true, true, false, 100, 14, 10);
+    const ui::LayerAlphas image100_unblurred = ui::ComputeLayerAlphas(true, true, true, false, 100, 0, 10);
+    const ui::LayerAlphas dark_image100 = ui::ComputeLayerAlphas(true, true, true, true, 100, 0, 10);
     const ui::LayerAlphas drawn = ui::ComputeLayerAlphas(false, true, true, false, 50, 14, 100);
-    Check(close_to(image.title, image10.title) && close_to(image.sheet, image10.sheet) && image.pane < 0.0f &&
-              drawn.pane < 0.0f,
-          L"layers: a background image ignores 侧边栏与标题栏; a sampled material never cuts through");
+    Check(close_to(image.title, image10.title) && close_to(image.sheet, image10.sheet) &&
+              close_to(image100.title, 0.0f) && close_to(image100.sheet, 0.0f) &&
+              close_to(image100.card, 0.0f) && close_to(image100_unblurred.title, 0.0f) &&
+              close_to(image100_unblurred.sheet, 0.0f) && close_to(image100_unblurred.card, 0.0f) &&
+              close_to(dark_image100.title, 0.0f) &&
+              image.pane < 0.0f && drawn.pane < 0.0f,
+          L"layers: background image is unobscured at 100%, including with blur off");
 }
 
 void TestBloomSpring() {
