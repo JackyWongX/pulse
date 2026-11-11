@@ -1403,6 +1403,7 @@ struct WindowViewModel {
     int settings_ui_font_scale = 100; // interface font size: 90 / 100 / 112 / 125
     // 主题色 › 自定义: hue 0..360, saturation 0..100, lightness 0..100 (settings_expanded bit 5 opens it).
     int settings_accent_hsl[3] = {220, 60, 50};
+    bool settings_accent_hex_edit_visible = false;
     bool settings_open_folders = false;
     bool settings_win_e = false;
     bool settings_this_pc = false;
@@ -1557,6 +1558,7 @@ struct HitTestResult {
         PaneSizeButton,     // narrow pane: opens that slider over the title (index = pane)
         PaneWall,           // main window panes: the view segment's photo wall button (index = pane)
         ToolbarSort,
+        ToolbarRowsToggle,
         ToolbarMore,
         ToolbarSelAction,   // selection chip: quick actions, kSelChipMore, kSelChipClear, -1 chip body
         ToolbarPin,         // pinned command or app (自定义工具栏): index into layout.pins
@@ -1707,6 +1709,7 @@ struct HitTestResult {
         SettingsFrameLook,     // 窗口效果 › 侧边栏与标题栏 slider; index = value
         SettingsAccentCustom,  // 主题色 › 自定义 button
         SettingsAccentSlider,  // sub_index 0 hue, 1 saturation, 2 lightness; index = value
+        SettingsAccentHex,
         SidebarToggle,       // title-bar sidebar collapse button
         WindowIdentity,      // title-bar window color dot and name (M7c)
         StatusHintAction,    // clickable action at the end of the status-bar hint

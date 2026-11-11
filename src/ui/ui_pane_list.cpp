@@ -3229,6 +3229,8 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
     const float y0 = bounds.top;
     float w = bounds.right - bounds.left;
     const float bottom = bounds.bottom;
+    const bool split = vm.layout_controls.pane_names.size() > 1;
+    const D2D1_RECT_F detailsRc = PaneDetailsRect(bounds, 1.0f, pane.size_control);
     if (w <= 1.0f || bottom - y0 <= 1.0f) return;
 
     dc->PushAxisAlignedClip(bounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
@@ -3245,12 +3247,14 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
     if (pane_cut) dc->SetPrimitiveBlend(D2D1_PRIMITIVE_BLEND_SOURCE_OVER);
 
     float y = y0;
+    pane_close_visible_ = false;
+    pane_expand_visible_ = false;
+    if (pane_header_height_ > 0.0f) {
     const std::wstring& title = pane.header_text;
     pane_close_visible_ = vm.pane_slots.size() > 1;
     pane_expand_visible_ = vm.layout_controls.pane_names.size() > 1 && vm.layout_controls.zoom_index < 0;
     const D2D1_RECT_F mediumRc = PaneMediumIconsRect(bounds, pane.filter_expand, pane.size_control);
     const D2D1_RECT_F viewRc = PaneViewButtonRect(bounds, pane.filter_expand);
-    const D2D1_RECT_F detailsRc = PaneDetailsRect(bounds, 1.0f, pane.size_control);
     const D2D1_RECT_F wallRc = PaneWallRect(pane, bounds);
     if (pane.header_drop) {
         MakeBrush(dc, WithAlpha(theme.accent, 0.18f), brFillHover_);
@@ -3259,7 +3263,6 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
             theme.radius_control * scale_);
     }
     // Keep the title stationary while the focused pane's controls crossfade.
-    const bool split = vm.layout_controls.pane_names.size() > 1;
     const D2D1_RECT_F sizeButtonRc = PaneSizeButtonRect(pane, bounds);
     const D2D1_RECT_F sizeSliderRc = PaneSizeSliderRect(pane, bounds);
     // A narrow pane's opened size slider takes the title's place.
@@ -3399,6 +3402,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
         DrawPaneHeaderIcon(closeRc, PaneHeaderIcon::Close, closeHot ? theme.text : theme.text_secondary);
     }
     y += pane_header_height_;
+    }
 
     if (const ColumnStripLayout strip = ColumnStripGeometry(pane, pane_rect); strip.active) {
         DrawColumnStrip(vm, pane, pane_rect, pane_index, theme);
@@ -4010,7 +4014,7 @@ void MainRenderer::DrawSinglePane(const WindowViewModel& vm, const PaneViewModel
         D2D1::RectF(pane_rect.left + 0.5f * scale_, pane_rect.top + 0.5f * scale_,
                     pane_rect.right - 0.5f * scale_, pane_rect.bottom - 0.5f * scale_),
         radius, radius);
-    if (split && focused && !IsHighContrast()) {
+    if (pane_header_height_ > 0.0f && split && focused && !IsHighContrast()) {
         const float marker_height = (std::min)(22.0f * scale_, pane_header_height_ - 8.0f * scale_);
         MakeBrush(dc, theme.accent, brAccent_);
         FillRoundedRect(dc, brAccent_.get(), pane_rect.left + 1.5f * scale_,

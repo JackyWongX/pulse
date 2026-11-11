@@ -919,7 +919,7 @@ void SettingsController::NewTabOpen(int index) {
 }
 
 void SettingsController::OpenPulseIcon(int index) {
-    static constexpr int values[] = {0, 1, 2};
+    static constexpr int values[] = {1, 2};
     if (prefs_ && SelectValue(index, values, prefs_->open_pulse_icon))
         SaveAndApply(SettingsEffect::None);
 }
@@ -939,6 +939,7 @@ void SettingsController::OpenThisPc(int index) {
 
 void SettingsController::OpenWinE(int index) {
     if (!prefs_ || index < 0 || index > 3) return;
+    if (index == 1 || index == 3) return;
     if (index != 0) prefs_->open_win_e = index - 1;
     if (prefs_->integration_win_e != (index != 0)) IntegrationAction(2);
     else SaveAndApply(SettingsEffect::None);

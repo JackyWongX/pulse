@@ -511,6 +511,8 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
         const float maximum=s.renderer.SettingsMaxScroll(vm,static_cast<float>(s.compositor.Width()),static_cast<float>(s.compositor.Height()));
         s.settings.SetScroll(s.settings.scroll(),maximum);break;
     }
+    case H::SettingsAccentHex:
+        ShowAccentHexEditor(s);break;
     case H::SettingsPreviewStore: ui::OpenPreviewCodecStore(s.hwnd,hit.index);break;
     case H::SettingsSysCtx: SysCtxAction(s,hit.index);break;
     case H::SettingsShortcuts: ShortcutsAction(s,hit.index);break;
@@ -639,16 +641,20 @@ bool HandleSettingsControl(AppState& s,const H& hit) {
             if(!s.appPrefs.integration_enabled) break;
             const int kind=hit.index-10;
             const bool enabled=kind==0 ? s.appPrefs.integration_folders : kind==1 ? s.appPrefs.integration_this_pc : s.appPrefs.integration_win_e;
-            const int value=!enabled ? 0 : kind==0 ? 1 : 1+(kind==1 ? s.appPrefs.open_this_pc : s.appPrefs.open_win_e);
+            const int value=!enabled ? 0 : kind==0 ? 1 : kind==1 ? 1+s.appPrefs.open_this_pc : 2;
             items.push_back(Item(1,I::IntegrationHandlerExplorer,value==0));
-            items.push_back(Item(2,kind==0 ? I::IntegrationHandlerPulse : I::ExternalOpenWindow,value==1));
+            if (kind == 2) {
+                items.push_back(Item(2,I::ExternalOpenTab,value==2));
+            } else {
+                items.push_back(Item(2,kind==0 ? I::IntegrationHandlerPulse : I::ExternalOpenWindow,value==1));
+            }
             if(kind!=0) items.push_back(Item(3,I::ExternalOpenTab,value==2));
-            if(kind==2) items.push_back(Item(4,I::OpenWindowActivate,value==3));
+            if(kind==2) items.pop_back();
             const int command=Dropdown(s,hit.index,std::move(items));
-            if(command>=1 && command<=(kind==0 ? 2 : kind==2 ? 4 : 3)) {
+            if(command>=1 && command<=(kind==0 ? 2 : kind==2 ? 2 : 3)) {
                 if(kind==0) { if(s.appPrefs.integration_folders!=(command==2)) s.settings.IntegrationAction(1); }
                 else if(kind==1) s.settings.OpenThisPc(command-1);
-                else s.settings.OpenWinE(command-1);
+                else s.settings.OpenWinE(command == 1 ? 0 : 2);
             }
         } else if(hit.index==0) {
             const I labels[]={I::EffectNone,I::EffectAcrylic,I::EffectMica,I::EffectMicaAlt};

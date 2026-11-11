@@ -42,8 +42,8 @@ const void* ActiveLayoutTab(const AppState& s) {
 }
 
 app::ExternalOpenPolicy OpenPolicy(const AppState& s) {
-    const int value = s.appPrefs.external_open;
-    return value >= 0 && value <= 2 ? static_cast<app::ExternalOpenPolicy>(value) : app::ExternalOpenPolicy::Smart;
+    (void)s;
+    return app::ExternalOpenPolicy::AlwaysTab;
 }
 
 // Rule 7: says where the folder went and offers the other way (one click,
@@ -120,8 +120,8 @@ ExternalOpenResult OpenExternalFolder(AppState& mru, const std::wstring& raw, bo
     request.new_window = false;
     request.can_dedupe = !this_pc;
     request.tick = now;
-    const int launch_mode = activate ? 2 : explicit_tab ? 1 : icon ? mru.appPrefs.open_pulse_icon :
-        win_e ? mru.appPrefs.open_win_e : mru.appPrefs.open_this_pc;
+    const int launch_mode = activate ? 2 : win_e || explicit_tab || explicit_window ? 1 :
+        icon ? mru.appPrefs.open_pulse_icon : mru.appPrefs.open_this_pc;
     const app::ExternalOpenDecision decision = activate ? app::DecideActivationTarget(snapshot) : launch
         ? app::DecideLaunchTarget(launch_mode, snapshot, explicit_window)
         : app::DecideOpenTarget(request, snapshot, batch, policy);

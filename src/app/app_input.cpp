@@ -3041,6 +3041,11 @@ LRESULT HandleLButtonDown(AppState* s, HWND hwnd, UINT msg, WPARAM wParam, LPARA
         ui::WindowViewModel vm = BuildVm(*s, false);
         D2D1_RECT_F rect = D2D1::RectF(0, 0, (float)s->compositor.Width(), (float)s->compositor.Height());
         ui::HitTestResult hit = s->renderer.HitTest(vm, rect, (float)mx, (float)my);
+        if (hit.region == ui::HitTestResult::ToolbarRowsToggle) {
+            s->renderer.SetToolbarRowsCollapsed(!s->renderer.ToolbarRowsCollapsed());
+            InvalidateRect(hwnd, nullptr, FALSE);
+            return 0;
+        }
         if (HandlePaneLayoutClick(*s, hit)) return 0;
         if (s->undoHistoryOpen && hit.region != ui::HitTestResult::UndoHistoryRow &&
             hit.region != ui::HitTestResult::UndoHistorySurface && hit.region != ui::HitTestResult::StatusUndoHistory &&

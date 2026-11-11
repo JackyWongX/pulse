@@ -46,7 +46,7 @@ void MainRenderer::DrawSettings(const WindowViewModel& vm, const D2D1_RECT_F& re
         const int v = std::clamp(vm.frame_transparency, 0, 100);
         nav_bg.a = v <= 10 ? nav_bg.a + (1.0f - nav_bg.a) * static_cast<float>(10 - v) / 10.0f
                            : nav_bg.a * static_cast<float>(100 - v) / 90.0f;
-    }
+    } else nav_bg.a *= sheet_alpha_;
     MakeBrush(dc, nav_bg, brFillHover_);
     FillRect(dc, brFillHover_.get(), lay.nav.left, lay.nav.top,
              lay.nav.right - lay.nav.left, lay.nav.bottom - lay.nav.top);

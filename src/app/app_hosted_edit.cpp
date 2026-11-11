@@ -1,6 +1,7 @@
 #include "../ui/edit_host.h"
 #include "../ui/FluentTokens.h"
 #include "../ui/ui_renderer.h"
+#include "../ui/ui_renderer_internal.h"
 // app_hosted_edit.cpp — extracted from app_main.cpp.
 #include "app_internal.h"
 #include "address_completion.h"
@@ -190,6 +191,90 @@ void LayoutAddressEditor(AppState& s) {
         D2D1::RectF(addr.left + insetX, addr.top + insetY,
                     addr.right - insetX, addr.bottom - insetY),
         s.scale, 0, 0);
+}
+
+void LayoutAccentHexEditor(AppState& s) {
+    if (!s.hwndAccentHexEdit || !s.accentHexEditing || !s.hwnd) return;
+    const ui::WindowViewModel vm = BuildVm(s, false);
+    if (!vm.settings_open || vm.settings_page != 0 || (vm.settings_expanded & 32u) == 0) {
+        HideAccentHexEditor(s, true);
+        return;
+    }
+    const D2D1_RECT_F rect = D2D1::RectF(0, 0, static_cast<float>(s.compositor.Width()),
+                                         static_cast<float>(s.compositor.Height()));
+    const ui::SettingsLayout layout = ui::MakeSettingsLayout(
+        vm, rect, s.scale, s.renderer.TitleBarHeight(), 28.0f * s.scale, nullptr);
+    const D2D1_RECT_F field = layout.accent_custom_hex;
+    if (field.right <= field.left || field.bottom <= field.top ||
+        field.top < layout.content.top || field.bottom > layout.content.bottom) {
+        HideAccentHexEditor(s, true);
+        return;
+    }
+    PlaceHostedEdit(s.hwndAccentHexEdit, s.hwnd, field, s.scale, 8, 6);
+}
+
+void ShowAccentHexEditor(AppState& s) {
+    if (s.accentHexEditing) {
+        SetFocus(s.hwndAccentHexEdit);
+        SendMessageW(s.hwndAccentHexEdit, EM_SETSEL, 0, -1);
+        return;
+    }
+    if (!s.hwndAccentHexEdit) s.hwndAccentHexEdit = CreateHostedEdit(s, AccentHexEditProc);
+    if (!s.hwndAccentHexEdit) {
+        ShowStatusFeedback(s, l10n::Get(l10n::StringId::SettingsHexEditorUnavailable));
+        return;
+    }
+    const auto channel = [](float value) {
+        return static_cast<unsigned>(std::lround(std::clamp(value, 0.0f, 1.0f) * 255.0f));
+    };
+    wchar_t hex[8]{};
+    swprintf_s(hex, L"#%02X%02X%02X", channel(s.accentColor.r), channel(s.accentColor.g),
+               channel(s.accentColor.b));
+    SendMessageW(s.hwndAccentHexEdit, EM_SETLIMITTEXT, 7, 0);
+    SetWindowTextW(s.hwndAccentHexEdit, hex);
+    s.accentHexEditing = true;
+    LayoutAccentHexEditor(s);
+    ShowWindow(s.hwndAccentHexEdit, SW_SHOW);
+    SetFocus(s.hwndAccentHexEdit);
+    SendMessageW(s.hwndAccentHexEdit, EM_SETSEL, 0, -1);
+    InvalidateRect(s.hwnd, nullptr, FALSE);
+}
+
+void HideAccentHexEditor(AppState& s, bool commit) {
+    if (!s.hwndAccentHexEdit || !s.accentHexEditing) return;
+    std::wstring input;
+    if (commit) {
+        input.resize(static_cast<size_t>(GetWindowTextLengthW(s.hwndAccentHexEdit)) + 1);
+        input.resize(static_cast<size_t>(GetWindowTextW(s.hwndAccentHexEdit, input.data(),
+                                                        static_cast<int>(input.size()))));
+    }
+    s.accentHexIgnoreKillFocus = true;
+    s.accentHexEditing = false;
+    ShowWindow(s.hwndAccentHexEdit, SW_HIDE);
+    s.accentHexIgnoreKillFocus = false;
+    if (commit) {
+        size_t first = input.find_first_not_of(L" \t\r\n");
+        size_t last = input.find_last_not_of(L" \t\r\n");
+        if (first == std::wstring::npos) {
+            input.clear();
+        } else {
+            input = input.substr(first, last - first + 1);
+        }
+        size_t offset = !input.empty() && input.front() == L'#' ? 1 : 0;
+        uint32_t rgb = 0;
+        bool valid = input.size() == offset + 6;
+        for (size_t i = offset; valid && i < input.size(); ++i) {
+            const wchar_t c = input[i];
+            const int digit = c >= L'0' && c <= L'9' ? c - L'0' :
+                c >= L'A' && c <= L'F' ? c - L'A' + 10 :
+                c >= L'a' && c <= L'f' ? c - L'a' + 10 : -1;
+            if (digit < 0) valid = false;
+            else rgb = (rgb << 4) | static_cast<uint32_t>(digit);
+        }
+        if (valid) s.settings.AccentChoice(false, rgb);
+        else ShowStatusFeedback(s, l10n::Get(l10n::StringId::SettingsInvalidHexColor));
+    }
+    if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
 void EnsureEditVisuals(AppState& s) {
@@ -1578,6 +1663,28 @@ LRESULT CALLBACK TagRenameEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         return EraseHostedEditBackground(hwnd, wParam, s) ? 1 : 0;
     }
     }
+    return DefPresentedHostedEditProc(s, hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK AccentHexEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
+                                   UINT_PTR, DWORD_PTR dwRefData) {
+    auto* s = reinterpret_cast<AppState*>(dwRefData);
+    if (!s) return DefSubclassProc(hwnd, msg, wParam, lParam);
+    LRESULT handled = 0;
+    if (HandleHostedEditMessage(*s, hwnd, msg, wParam, lParam, handled)) return handled;
+    if (msg == WM_CHAR && (wParam == VK_RETURN || wParam == VK_ESCAPE)) return 0;
+    if (msg == WM_KEYDOWN && wParam == VK_RETURN) {
+        HideAccentHexEditor(*s, true);
+        return 0;
+    }
+    if (msg == WM_KEYDOWN && wParam == VK_ESCAPE) {
+        HideAccentHexEditor(*s, false);
+        SetFocus(s->hwnd);
+        return 0;
+    }
+    if (msg == WM_KILLFOCUS && !s->accentHexIgnoreKillFocus)
+        HideAccentHexEditor(*s, true);
+    if (msg == WM_ERASEBKGND) return EraseHostedEditBackground(hwnd, wParam, s) ? 1 : 0;
     return DefPresentedHostedEditProc(s, hwnd, msg, wParam, lParam);
 }
 

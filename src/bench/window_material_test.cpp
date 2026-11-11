@@ -335,7 +335,8 @@ int wmain() {
         props.bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET;
         props.dpiX = 96.0f;
         props.dpiY = 96.0f;
-        const auto render = [&](bool full_source, std::vector<BYTE>& pixels) {
+        const auto render = [&](bool full_source, float blur_px, float opacity,
+                                 std::vector<BYTE>& pixels) {
             WindowMaterial material;
             material.SetCompositor(&compositor);
             if (full_source && !WaitBitmap(material, pattern, 5000)) return false;
@@ -346,18 +347,21 @@ int wmain() {
             for (ULONGLONG deadline = GetTickCount64() + 5000; !drawn && GetTickCount64() < deadline;) {
                 dc->SetTarget(target.get());
                 dc->BeginDraw();
+                dc->Clear(D2D1::ColorF(0.0f, 0.0f, 0.0f, 0.0f));
                 drawn = material.DrawSourceCover(dc, D2D1::RectF(0.0f, 0.0f, 1400.0f, 900.0f),
-                                                 pattern, 14.0f);
+                                                 pattern, blur_px, opacity);
                 drawn &= SUCCEEDED(dc->EndDraw());
                 dc->SetTarget(nullptr);
                 if (!drawn) Sleep(10);
             }
             const UINT edge = material.SourceSizeForTesting().width;
-            return drawn && edge == (full_source ? 1600u : 1024u) && ReadPixels(dc, target.get(), pixels);
+            return drawn && edge == (full_source ? 1600u : 1024u) &&
+                   ReadPixels(dc, target.get(), pixels);
         };
         std::vector<BYTE> soft_pixels;
         std::vector<BYTE> full_pixels;
-        const bool rendered = render(false, soft_pixels) && render(true, full_pixels) &&
+        const bool rendered = render(false, 14.0f, 1.0f, soft_pixels) &&
+                              render(true, 14.0f, 1.0f, full_pixels) &&
                               soft_pixels.size() == full_pixels.size();
         double total = 0.0;
         int worst = 0;
@@ -374,6 +378,31 @@ int wmain() {
                     mean, worst);
         passed &= Report("the sample-size source blurs like the full source",
                          rendered && mean < 1.0 && worst <= 8);
+
+        for (const float blur_px : {0.0f, 14.0f}) {
+            std::vector<BYTE> opaque_pixels;
+            std::vector<BYTE> half_pixels;
+            std::vector<BYTE> clear_pixels;
+            const bool opacity_rendered = render(true, blur_px, 1.0f, opaque_pixels) &&
+                                          render(true, blur_px, 0.5f, half_pixels) &&
+                                          render(true, blur_px, 0.0f, clear_pixels) &&
+                                          opaque_pixels.size() == half_pixels.size() &&
+                                          opaque_pixels.size() == clear_pixels.size();
+            int max_scale_error = 0;
+            bool fully_clear = opacity_rendered;
+            if (opacity_rendered) {
+                for (size_t i = 0; i < opaque_pixels.size(); ++i) {
+                    const int error = std::abs(2 * static_cast<int>(half_pixels[i]) -
+                                               static_cast<int>(opaque_pixels[i]));
+                    if (error > max_scale_error) max_scale_error = error;
+                    fully_clear = fully_clear && clear_pixels[i] == 0;
+                }
+            }
+            passed &= Report(blur_px > 0.0f
+                                 ? "blurred wallpaper opacity scales linearly from 0 to 100 percent"
+                                 : "sharp wallpaper opacity scales linearly from 0 to 100 percent",
+                             opacity_rendered && fully_clear && max_scale_error <= 2);
+        }
     }
 
     if (compositor_ready) {

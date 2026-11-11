@@ -1397,7 +1397,7 @@ BEGIN
     IDS_COPY_TO_WINDOW "複製到視窗"
     IDS_MOVE_TO_WINDOW "移動到視窗"
     IDS_SETTINGS_EXTERNAL_OPEN "從其他程式開啟的資料夾"
-    IDS_SETTINGS_EXTERNAL_OPEN_DESC "智慧：正在使用的視窗不受打擾，改開新視窗；已開啟的資料夾直接切換過去"
+    IDS_SETTINGS_EXTERNAL_OPEN_DESC "從其他程式開啟的資料夾一律在唯一的主視窗中以新分頁開啟"
     IDS_EXTERNAL_OPEN_SMART "智慧"
     IDS_EXTERNAL_OPEN_TAB "索引標籤"
     IDS_EXTERNAL_OPEN_WINDOW "新視窗"
@@ -5090,4 +5090,8 @@ BEGIN
     IDS_ARCHIVE_PLUGIN_REQUIRED "需要壓縮檔外掛程式。請安裝並啟用支援此格式的原生增強套件。"
     IDS_ARCHIVE_PLUGIN_MIGRATION_TITLE "壓縮檔增強功能已移轉"
     IDS_ARCHIVE_PLUGIN_MIGRATION_BODY "舊的 7-Zip 下載套件已停用。請安裝並啟用壓縮檔原生增強套件以預覽及解壓縮 7z、RAR；內建 ZIP 功能不受影響。"
+    IDS_SETTINGS_INVALID_HEX_COLOR "請輸入有效的色彩值，例如 #RRGGBB。"
+    IDS_SETTINGS_HEX_EDITOR_UNAVAILABLE "無法開啟色彩輸入欄位。"
+    IDS_TOOLBAR_ROWS_EXPAND "展開工具列與窗格標題"
+    IDS_TOOLBAR_ROWS_COLLAPSE "摺疊工具列與窗格標題"
 END

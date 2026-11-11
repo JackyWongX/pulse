@@ -597,7 +597,7 @@ DropSplitHere	IDS_DROP_SPLIT_HERE	2588	在此分屏	Split here	在此分割
 CopyToWindow	IDS_COPY_TO_WINDOW	2589	复制到窗口	Copy to window	複製到視窗
 MoveToWindow	IDS_MOVE_TO_WINDOW	2590	移动到窗口	Move to window	移動到視窗
 SettingsExternalOpen	IDS_SETTINGS_EXTERNAL_OPEN	2591	从其他程序打开的文件夹	Folders opened from other apps	從其他程式開啟的資料夾
-SettingsExternalOpenDesc	IDS_SETTINGS_EXTERNAL_OPEN_DESC	2592	智能：正在用的窗口不打断，改开新窗口；已开的文件夹直接切过去	Smart: a window in use is left alone and a new one opens; an open folder comes forward	智慧：正在使用的視窗不受打擾，改開新視窗；已開啟的資料夾直接切換過去
+SettingsExternalOpenDesc	IDS_SETTINGS_EXTERNAL_OPEN_DESC	2592	从其他程序打开的文件夹始终在唯一的主窗口中作为新页签打开	Folders opened from other apps always open in a new tab in the single main window	從其他程式開啟的資料夾一律在唯一的主視窗中以新分頁開啟
 ExternalOpenSmart	IDS_EXTERNAL_OPEN_SMART	2593	智能	Smart	智慧
 ExternalOpenTab	IDS_EXTERNAL_OPEN_TAB	2594	标签页	Tab	索引標籤
 ExternalOpenWindow	IDS_EXTERNAL_OPEN_WINDOW	2595	新窗口	New window	新視窗
@@ -5117,3 +5117,7 @@ NativeExtensionSettingsChoose	IDS_NATIVE_EXTENSION_SETTINGS_CHOOSE	6387	选择�
 ArchivePluginRequired	IDS_ARCHIVE_PLUGIN_REQUIRED	6388	需要压缩包插件。请安装并启用支持此格式的原生增强包。	An archive plugin is required. Install and enable a native extension supporting this format.	需要壓縮檔外掛程式。請安裝並啟用支援此格式的原生增強套件。
 ArchivePluginMigrationTitle	IDS_ARCHIVE_PLUGIN_MIGRATION_TITLE	6389	压缩包增强功能已迁移	Archive features have moved to plugins	壓縮檔增強功能已移轉
 ArchivePluginMigrationBody	IDS_ARCHIVE_PLUGIN_MIGRATION_BODY	6390	旧的 7-Zip 下载包已停用。请安装并启用压缩包原生增强包以预览和解压 7z、RAR；内置 ZIP 功能不受影响。	The old 7-Zip download pack is retired. Install and enable the native archive extension to preview and extract 7z and RAR files. Built-in ZIP features remain available.	舊的 7-Zip 下載套件已停用。請安裝並啟用壓縮檔原生增強套件以預覽及解壓縮 7z、RAR；內建 ZIP 功能不受影響。
+SettingsInvalidHexColor	IDS_SETTINGS_INVALID_HEX_COLOR	6391	请输入有效的颜色值，例如 #RRGGBB。	Enter a valid color value, for example #RRGGBB.	請輸入有效的色彩值，例如 #RRGGBB。
+SettingsHexEditorUnavailable	IDS_SETTINGS_HEX_EDITOR_UNAVAILABLE	6392	无法打开颜色输入框。	Unable to open the color input field.	無法開啟色彩輸入欄位。
+ToolbarRowsExpand	IDS_TOOLBAR_ROWS_EXPAND	6393	展开工具栏和窗格标题	Expand the toolbar and pane headers	展開工具列與窗格標題
+ToolbarRowsCollapse	IDS_TOOLBAR_ROWS_COLLAPSE	6394	折叠工具栏和窗格标题	Collapse the toolbar and pane headers	摺疊工具列與窗格標題

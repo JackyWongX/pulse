@@ -133,12 +133,12 @@ void ClearTextWidthCache() {
         const float t = std::clamp((x - g.left) / (std::max)(1.0f, g.right - g.left), 0.0f, 1.0f);
         return static_cast<int>(t * static_cast<float>(max_value) + 0.5f);
     }
-    constexpr float kTabMinW = 96.0f;  // crowded tabs stop here and the strip scrolls
-    constexpr float kTabMaxW = 240.0f;
+    constexpr float kTabMinW = 176.0f;  // crowded tabs stop here and the strip scrolls
+    constexpr float kTabMaxW = 320.0f;
     constexpr float kTabPinnedW = 36.0f; // Chrome pinned tab: icon-only square
-    constexpr float kTabPinnedNamedW = 112.0f;
+    constexpr float kTabPinnedNamedW = 224.0f;
     constexpr float kTabCloseAlwaysW = 140.0f; // narrower inactive tabs show close on hover
-    constexpr float kTabActiveMinW = 120.0f;  // crowded active tab: minimum + room for close
+    constexpr float kTabActiveMinW = 224.0f;  // crowded active tab: minimum + room for close
     constexpr float kTabScrollArrowW = 24.0f;
     constexpr float kTabClosePadDip = 10.0f;
     constexpr float kTabCloseSizeDip = 16.0f;
@@ -2303,13 +2303,28 @@ void DrawTextEndEllipsis(Compositor* compositor, IDWriteTextFormat* fmt,
 void DrawTabTitle(ID2D1DeviceContext* dc, IDWriteFactory2* factory,
                          IDWriteTextFormat* fmt, ID2D1SolidColorBrush* br,
                          const std::wstring& text, float x, float y, float w, float h,
-                         float scale) {
+                         float scale, DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT_LEADING) {
     if (!dc || !fmt || text.empty() || w <= 1.0f || h <= 1.0f) return;
     const D2D1_RECT_F rc = D2D1::RectF(x, y, x + w, y + h);
     const float fullW = MeasureTextWidth(factory, fmt, text);
     if (fullW <= w) {
-        dc->DrawText(text.c_str(), (UINT32)text.size(), fmt, &rc, br,
-                     D2D1_DRAW_TEXT_OPTIONS_CLIP, DWRITE_MEASURING_MODE_NATURAL);
+        if (alignment == fmt->GetTextAlignment() || !factory) {
+            dc->DrawText(text.c_str(), (UINT32)text.size(), fmt, &rc, br,
+                         D2D1_DRAW_TEXT_OPTIONS_CLIP, DWRITE_MEASURING_MODE_NATURAL);
+        } else {
+            ComPtr<IDWriteTextLayout> layout;
+            if (SUCCEEDED(factory->CreateTextLayout(text.c_str(), (UINT32)text.size(), fmt,
+                                                    w, h, &layout)) && layout.get()) {
+                layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+                layout->SetTextAlignment(alignment);
+                layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+                dc->DrawTextLayout(D2D1::Point2F(x, y), layout.get(), br,
+                                   D2D1_DRAW_TEXT_OPTIONS_CLIP);
+            } else {
+                dc->DrawText(text.c_str(), (UINT32)text.size(), fmt, &rc, br,
+                             D2D1_DRAW_TEXT_OPTIONS_CLIP, DWRITE_MEASURING_MODE_NATURAL);
+            }
+        }
         return;
     }
 
@@ -2324,6 +2339,7 @@ void DrawTabTitle(ID2D1DeviceContext* dc, IDWriteFactory2* factory,
             return;
         }
         layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+        layout->SetTextAlignment(alignment);
         layout->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
         DWRITE_TRIMMING trimming{ DWRITE_TRIMMING_GRANULARITY_CHARACTER, 0, 0 };
         ComPtr<IDWriteInlineObject> ellipsis;
@@ -2356,9 +2372,12 @@ void DrawTabTitle(ID2D1DeviceContext* dc, IDWriteFactory2* factory,
 // Main-window tab titles through LumaText, keeping the DirectWrite version's
 // rule that a short extension stays visible when the stem is elided.
 void DrawTabTitle(Compositor* compositor, IDWriteTextFormat* fmt, ID2D1SolidColorBrush* br,
-                  const std::wstring& text, float x, float y, float w, float h, float scale) {
+                  const std::wstring& text, float x, float y, float w, float h, float scale,
+                  DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT_LEADING) {
     if (!compositor || !compositor->Dc() || !fmt || !br || text.empty() || w <= 1.0f || h <= 1.0f) return;
     IDWriteFactory2* factory = compositor->DwriteFactory();
+    const float fullW = factory ? MeasureTextWidth(factory, fmt, text) : 0.0f;
+    const DWRITE_TEXT_ALIGNMENT title_alignment = fullW <= w ? alignment : fmt->GetTextAlignment();
     const auto luma = [&](const std::wstring& s, float left, float width, DWRITE_TEXT_ALIGNMENT alignment) {
         return !IsHighContrast() && width > 1.0f &&
             compositor->DrawLumaText(s, fmt, D2D1::RectF(left, y, left + width, y + h),
@@ -2381,18 +2400,20 @@ void DrawTabTitle(Compositor* compositor, IDWriteTextFormat* fmt, ID2D1SolidColo
             return;
         }
     }
-    if (luma(text, x, w, fmt->GetTextAlignment())) return;
-    DrawTabTitle(compositor->Dc(), factory, fmt, br, text, x, y, w, h, scale);
+    if (luma(text, x, w, title_alignment)) return;
+    DrawTabTitle(compositor->Dc(), factory, fmt, br, text, x, y, w, h, scale, title_alignment);
 }
 
 // Edge-style: a title too long for its tab fades out over its last few
 // pixels instead of ending in "...", so narrow tabs keep more of the name.
 void DrawTabTitleFaded(Compositor* compositor, IDWriteTextFormat* fmt, ID2D1SolidColorBrush* br,
-                       const std::wstring& text, float x, float y, float w, float h, float scale) {
+                       const std::wstring& text, float x, float y, float w, float h, float scale,
+                       DWRITE_TEXT_ALIGNMENT alignment = DWRITE_TEXT_ALIGNMENT_LEADING) {
     if (!compositor || !compositor->Dc() || !fmt || !br || text.empty() || w <= 1.0f || h <= 1.0f) return;
     IDWriteFactory2* factory = compositor->DwriteFactory();
     ID2D1DeviceContext* dc = compositor->Dc();
     const float fullW = factory ? MeasureTextWidth(factory, fmt, text) : 0.0f;
+    const DWRITE_TEXT_ALIGNMENT title_alignment = fullW <= w ? alignment : fmt->GetTextAlignment();
     const float fade = std::min(20.0f * scale, w * 0.4f);
     ComPtr<ID2D1GradientStopCollection> stops;
     ComPtr<ID2D1LinearGradientBrush> mask;
@@ -2405,14 +2426,14 @@ void DrawTabTitleFaded(Compositor* compositor, IDWriteTextFormat* fmt, ID2D1Soli
                 D2D1::Point2F(x, 0.0f), D2D1::Point2F(x + w, 0.0f)), stops.get(), &mask);
     }
     if (!mask.get()) {
-        DrawTabTitle(compositor, fmt, br, text, x, y, w, h, scale);
+        DrawTabTitle(compositor, fmt, br, text, x, y, w, h, scale, title_alignment);
         return;
     }
     dc->PushLayer(D2D1::LayerParameters1(D2D1::RectF(x, y, x + w, y + h), nullptr,
                                          D2D1_ANTIALIAS_MODE_PER_PRIMITIVE, D2D1::IdentityMatrix(),
                                          1.0f, mask.get(), D2D1_LAYER_OPTIONS1_NONE), nullptr);
     // Laid out at full width so nothing trims; the layer clips and fades it.
-    DrawTabTitle(compositor, fmt, br, text, x, y, fullW + 8.0f * scale, h, scale);
+    DrawTabTitle(compositor, fmt, br, text, x, y, fullW + 8.0f * scale, h, scale, title_alignment);
     dc->PopLayer();
 }
 
@@ -2665,7 +2686,7 @@ struct SettingsLayout {
     D2D1_RECT_F nav_group_label[kSettingsNavGroups]{};
     D2D1_RECT_F nav_separator[kSettingsNavGroups]{};
     // 主题色 › 自定义: the button, the preview row and the three slider rows.
-    D2D1_RECT_F accent_custom_button{}, accent_custom_head{}, accent_custom_swatch{};
+    D2D1_RECT_F accent_custom_button{}, accent_custom_head{}, accent_custom_swatch{}, accent_custom_hex{};
     D2D1_RECT_F accent_slider_row[3]{}, accent_slider_cells[3][3]{};
     // 关于与诊断 › 新手提示.
     D2D1_RECT_F tips_card{};

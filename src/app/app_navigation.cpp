@@ -230,11 +230,7 @@ void OpenWorkspaceNewTab(AppState& s, int index) {
 }
 
 void OpenWorkspaceNewWindow(AppState& s, int index) {
-    if (index < 0 || index >= static_cast<int>(s.places.workspaces.size())) return;
-    const HWND hwnd = OpenPulseWindow(s, WindowInit{s.places.workspaces[static_cast<size_t>(index)].root});
-    if (!hwnd) return;
-    auto* target = reinterpret_cast<AppState*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-    if (target) RestoreWorkspace(*target, index, false);
+    OpenWorkspaceNewTab(s, index);
 }
 
 void SaveCurrentWorkspace(AppState& s) {

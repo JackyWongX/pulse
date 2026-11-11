@@ -170,6 +170,7 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
         const auto row = ToolbarLayoutAt(rect.right, NewButtonWidthPx(rect.right - sbw < 600 * scale_));
         for (const auto& nav : row.navigation) titleToolbar = titleToolbar || ContainsPt(nav, x, y);
         titleToolbar = titleToolbar || ContainsPt(row.address, x, y) || ContainsPt(row.search, x, y) ||
+            ContainsPt(row.rows_toggle, x, y) ||
             (vm.address_searching && ContainsPt(SearchBarRect(rect.right), x, y));
     }
     if (y < title_bar_height_ && !titleToolbar) {
@@ -398,7 +399,12 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 }
 
                 if(vm.settings_integration_enabled) for(int i=0;i<3;++i) {
-                    for(int j=0;j<IntegrationChoiceCount(i);++j) if(ContainsPt(lay.integration_segments[i][j],x,y)) {r.region=HitTestResult::SettingsIntegration;r.index=20+i*3+j;return r;}
+                    for(int j=0;j<IntegrationChoiceCount(i);++j) {
+                        if(i==2 && j!=0 && j!=2) continue;
+                        if(ContainsPt(lay.integration_segments[i][j],x,y)) {
+                            r.region=HitTestResult::SettingsIntegration;r.index=20+i*3+j;return r;
+                        }
+                    }
                 }
                 if(ContainsPt(lay.default_manager_row,x,y)) {r.region=HitTestResult::SettingsIntegration;r.index=0;return r;}
                 if(vm.settings_integration_enabled) {
@@ -416,6 +422,9 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 }
                 if (ContainsPt(lay.accent_custom_button, x, y)) {
                     r.region = HitTestResult::SettingsAccentCustom; r.index = 0; return r;
+                }
+                if (ContainsPt(lay.accent_custom_hex, x, y)) {
+                    r.region = HitTestResult::SettingsAccentHex; return r;
                 }
                 for (int i = 0; i < 3; ++i) {
                     const auto* cells = lay.accent_slider_cells[i];
@@ -1025,13 +1034,18 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
         }
         return r;
     }
-    if (!inPeek && x >= EffectiveSidebarWidth(rect.right) && y < title_bar_height_ + toolbar_height_) {
+    if (!inPeek && x >= EffectiveSidebarWidth(rect.right) &&
+        (y < title_bar_height_ + toolbar_height_ || (vertical_tabs_ && y < title_bar_height_))) {
         const auto toolbar = ToolbarLayoutAt(rect.right,
             NewButtonWidthPx(rect.right-EffectiveSidebarWidth(rect.right) < 600 * scale_), vm.pane.filter_expand);
         const HitTestResult::Region nav[] = {HitTestResult::NavBack, HitTestResult::NavForward,
             HitTestResult::NavUp, HitTestResult::NavRefresh};
         const bool searchOverlay=vm.address_searching && toolbar.merged_search;
         for (int i=0; i<4; ++i) if (ContainsPt(toolbar.navigation[i],x,y)) {r.region=nav[i]; return r;}
+        if (ContainsPt(toolbar.rows_toggle, x, y)) {
+            r.region = HitTestResult::ToolbarRowsToggle;
+            return r;
+        }
         // Hit-test the same rect the chrome is drawn in; toolbar.search can be wider,
         // which shifted every chip target (e.g. the options icon toggled the mode).
         const auto searchBounds=searchOverlay || vm.address_searching ? SearchBarRect(rect.right) : toolbar.search;
@@ -1519,8 +1533,9 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
         }
     }
 
-    pane_close_visible_ = vm.pane_slots.size() > 1;
-    pane_expand_visible_ = vm.layout_controls.pane_names.size() > 1 && vm.layout_controls.zoom_index < 0;
+    pane_close_visible_ = pane_header_height_ > 0.0f && vm.pane_slots.size() > 1;
+    pane_expand_visible_ = pane_header_height_ > 0.0f && vm.layout_controls.pane_names.size() > 1 &&
+                           vm.layout_controls.zoom_index < 0;
     auto hitPaneBounds = [&](const PaneViewModel& paneVm, const D2D1_RECT_F& paneRect, int paneIndex, bool focused) -> HitTestResult {
         // Header controls use the full pane; below the header the column
         // view narrows the regular list to its body.
@@ -1533,18 +1548,19 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
         }
         if (x < paneRc.left || x >= paneRc.right || y < paneRc.top || y >= paneRc.bottom)
             return out;
-        if (vm.layout_controls.zoom_index >= 0) {
+        if (pane_header_height_ > 0.0f && vm.layout_controls.zoom_index >= 0) {
             auto chip=PaneZoomChipRect(paneVm,paneRc);chip.left=std::max(chip.left,chip.right-72*scale_);
             if(ContainsPt(chip,x,y)){out.region=HitTestResult::PaneExpand;out.index=paneIndex;return out;}
         }
-        if (pane_expand_visible_ && ContainsPt(PaneExpandRect(paneRc), x, y)) { out.region=HitTestResult::PaneExpand;out.index=paneIndex;return out; }
-        if (vm.pane_slots.size() > 1 && ContainsPt(PaneCloseRect(paneRc), x, y)) {
+        if (pane_header_height_ > 0.0f && pane_expand_visible_ && ContainsPt(PaneExpandRect(paneRc), x, y)) { out.region = HitTestResult::PaneExpand;out.index=paneIndex;return out; }
+        if (pane_header_height_ > 0.0f && vm.pane_slots.size() > 1 && ContainsPt(PaneCloseRect(paneRc), x, y)) {
             out.region = HitTestResult::PaneClose;
             out.index = paneIndex;
             return out;
         }
         const D2D1_RECT_F detailsRc = PaneDetailsRect(paneRc, 1.0f, paneVm.size_control);
-        if ((vm.pane_slots.size() > 1 || vm.layout_controls.zoom_index >= 0 || (focused && paneVm.header_controls_opacity > 0.05f))) {
+        if (pane_header_height_ > 0.0f &&
+            (vm.pane_slots.size() > 1 || vm.layout_controls.zoom_index >= 0 || (focused && paneVm.header_controls_opacity > 0.05f))) {
             // The size slider can open over the title, so it goes first.
             const D2D1_RECT_F sizeRc[] = {PaneSizeSliderRect(paneVm, paneRc), PaneSizeButtonRect(paneVm, paneRc)};
             const HitTestResult::Region sizeHits[] = {HitTestResult::PaneSizeSlider, HitTestResult::PaneSizeButton};
@@ -1552,10 +1568,11 @@ HitTestResult MainRenderer::HitTest(const WindowViewModel& vm, const D2D1_RECT_F
                 out.region = sizeHits[i]; out.index = paneIndex; return out;
             }
         }
-        if (compositor_ && ContainsPt(ChangeTitleRect(paneRc, PaneHeaderTitleRight(paneVm, paneRc), pane_header_height_, paneVm.title_change_badge, scale_, compositor_, paneVm.header_text), x, y)) {
+        if (pane_header_height_ > 0.0f && compositor_ && ContainsPt(ChangeTitleRect(paneRc, PaneHeaderTitleRight(paneVm, paneRc), pane_header_height_, paneVm.title_change_badge, scale_, compositor_, paneVm.header_text), x, y)) {
             out.region = HitTestResult::ChangeBadge; out.index = -1; return out;
         }
-        if ((vm.pane_slots.size() > 1 || vm.layout_controls.zoom_index >= 0 || (focused && paneVm.header_controls_opacity > 0.05f))) {
+        if (pane_header_height_ > 0.0f &&
+            (vm.pane_slots.size() > 1 || vm.layout_controls.zoom_index >= 0 || (focused && paneVm.header_controls_opacity > 0.05f))) {
             const D2D1_RECT_F buttons[] = {detailsRc, PaneMediumIconsRect(paneRc, 1.0f, paneVm.size_control),
                                            PaneWallRect(paneVm, paneRc), PaneViewButtonRect(paneRc)};
             const HitTestResult::Region actions[] = {HitTestResult::PaneDetails, HitTestResult::PaneMediumIcons,

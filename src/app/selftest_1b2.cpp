@@ -3260,19 +3260,28 @@ void TestLayerAlphas() {
         last_side = side(a);
     }
     Check(falling, L"layers: the sidebar clears steadily; the file list and Settings cards never get thinner");
-    const ui::LayerAlphas image = ui::ComputeLayerAlphas(true, true, true, false, 50, 14, 100);
-    const ui::LayerAlphas image10 = ui::ComputeLayerAlphas(true, true, true, false, 50, 14, 10);
-    const ui::LayerAlphas image100 = ui::ComputeLayerAlphas(true, true, true, false, 100, 14, 10);
-    const ui::LayerAlphas image100_unblurred = ui::ComputeLayerAlphas(true, true, true, false, 100, 0, 10);
-    const ui::LayerAlphas dark_image100 = ui::ComputeLayerAlphas(true, true, true, true, 100, 0, 10);
     const ui::LayerAlphas drawn = ui::ComputeLayerAlphas(false, true, true, false, 50, 14, 100);
-    Check(close_to(image.title, image10.title) && close_to(image.sheet, image10.sheet) &&
-              close_to(image100.title, 0.0f) && close_to(image100.sheet, 0.0f) &&
-              close_to(image100.card, 0.0f) && close_to(image100_unblurred.title, 0.0f) &&
-              close_to(image100_unblurred.sheet, 0.0f) && close_to(image100_unblurred.card, 0.0f) &&
-              close_to(dark_image100.title, 0.0f) &&
-              image.pane < 0.0f && drawn.pane < 0.0f,
-          L"layers: background image is unobscured at 100%, including with blur off");
+    bool images_unobscured = true;
+    bool image_opacity_tracks_slider = true;
+    for (int dark = 0; dark < 2; ++dark) {
+        for (int transparency = 0; transparency <= 100; transparency += 10) {
+            image_opacity_tracks_slider =
+                image_opacity_tracks_slider &&
+                close_to(ui::WallpaperImageOpacity(transparency),
+                         static_cast<float>(transparency) / 100.0f);
+            for (int blur : {0, 14}) {
+                const ui::LayerAlphas image =
+                    ui::ComputeLayerAlphas(true, true, true, dark != 0, transparency, blur);
+                images_unobscured = images_unobscured && close_to(image.title, 0.0f) &&
+                                    close_to(image.sheet, 0.0f) && close_to(image.card, 0.0f);
+            }
+        }
+    }
+    Check(images_unobscured && drawn.pane < 0.0f,
+          L"layers: background images have no scrim at any transparency, theme, or blur setting");
+    Check(image_opacity_tracks_slider && close_to(ui::WallpaperImageOpacity(-1), 0.0f) &&
+              close_to(ui::WallpaperImageOpacity(101), 1.0f),
+          L"layers: image opacity follows the transparency slider from 0 to 100");
 }
 
 void TestBloomSpring() {
@@ -5618,8 +5627,8 @@ void TestSplitLayout() {
     Check(chrome.TabItemRect(chrome_vm, 1400.0f, 0, &tab_rc) &&
           std::abs((tab_rc.bottom - tab_rc.top) - (ui::kTitleBarHeight - 8.0f)) < 0.01f,
           L"chrome: tab height is title bar minus 8dip padding");
-    Check(tab_rc.right - tab_rc.left > 170.0f,
-          L"chrome: a single tab can grow past the old 176px cap");
+    Check(tab_rc.right - tab_rc.left >= 176.0f && tab_rc.right - tab_rc.left <= 320.0f,
+          L"chrome: a single tab stays within the comfortable width range");
 
     ui::WindowViewModel pinned_vm;
     ui::TabView pinned_tab;
@@ -5629,8 +5638,8 @@ void TestSplitLayout() {
     pinned_vm.tabs.push_back(pinned_tab);
     D2D1_RECT_F pinned_rc{};
     Check(chrome.TabItemRect(pinned_vm, 758.0f, 0, &pinned_rc) &&
-          std::abs((pinned_rc.right - pinned_rc.left) - 112.0f) < 0.01f,
-          L"chrome: pinned tab shows a compact name by default");
+          std::abs((pinned_rc.right - pinned_rc.left) - 224.0f) < 0.01f,
+          L"chrome: named pinned tab keeps its fixed width");
     const auto named_hit = chrome.HitTest(pinned_vm, D2D1::RectF(0, 0, 758, 269),
         pinned_rc.right - 1.0f, (pinned_rc.top + pinned_rc.bottom) * 0.5f);
     Check(named_hit.region == ui::HitTestResult::Tab,
@@ -5678,50 +5687,96 @@ void TestSplitLayout() {
               (L"chrome: " + std::to_wstring(count) + L" tabs stay left of new-tab and settings").c_str());
     }
     {
-        auto vm = crowded(40, 30);
-        D2D1_RECT_F active_rc{}, other_rc{};
-        Check(chrome.TabItemRect(vm, crowd_w, 30, &active_rc) && chrome.TabItemRect(vm, crowd_w, 29, &other_rc) &&
-              std::abs((active_rc.right - active_rc.left) - 120.0f) < 0.01f &&
-              std::abs((other_rc.right - other_rc.left) - 96.0f) < 0.01f,
-              L"chrome: crowded tabs stop at the minimum width while the active tab keeps room for close");
-        const float mid_y = (active_rc.top + active_rc.bottom) * 0.5f;
-        const auto active_hit = chrome.HitTest(vm, crowd_rect, (active_rc.left + active_rc.right) * 0.5f, mid_y);
-        Check(active_hit.region == ui::HitTestResult::Tab && active_hit.index == 30,
-              L"chrome: scrolling strip reveals the active tab");
-        const auto other_hit = chrome.HitTest(vm, crowd_rect, (other_rc.left + other_rc.right) * 0.5f, mid_y);
-        Check(other_hit.region == ui::HitTestResult::Tab && other_hit.index == 29,
-              L"chrome: icon-only tabs have no close button");
-        D2D1_RECT_F strip_start{}, first{};
-        chrome.TabItemRect(crowded(1, 0), crowd_w, 0, &strip_start);
-        const float view_left = strip_start.left + 24.0f; // kTabScrollArrowW
-        chrome.TabItemRect(vm, crowd_w, 0, &first);
-        const auto left_arrow = chrome.HitTest(vm, crowd_rect, strip_start.left + 12.0f, mid_y);
-        Check(left_arrow.region == ui::HitTestResult::TabScroll && left_arrow.index == -1 && first.right <= view_left,
-              L"chrome: earlier tabs are scrolled behind the left arrow");
-        Check(chrome.ScrollTabStrip(vm, crowd_w, 400.0f, mid_y, 100.0f) &&
-              chrome.TabItemRect(vm, crowd_w, 0, &first) && first.left >= view_left - 0.01f,
-              L"chrome: wheel scrolls the strip back to the first tab");
-        Check(!chrome.ScrollTabStrip(crowded(3, 0), crowd_w, 400.0f, mid_y, 1.0f),
-              L"chrome: a strip that fits ignores the wheel");
+        auto long_crowded = [](int count, int active) {
+            ui::WindowViewModel vm;
+            for (int i = 0; i < count; ++i) {
+                ui::TabView t;
+                t.title = L"Quarterly production archive and detailed report.pdf";
+                t.active = i == active;
+                vm.tabs.push_back(t);
+            }
+            return vm;
+        };
+        D2D1_RECT_F single{}, compressed{};
+        Check(chrome.TabItemRect(long_crowded(1, 0), crowd_w, 0, &single) &&
+              std::abs((single.right - single.left) - 320.0f) < 0.01f,
+              L"chrome: a long title is capped instead of stretching across the strip");
+        const auto three_long = long_crowded(3, 2);
+        Check(chrome.TabItemRect(three_long, crowd_w, 0, &compressed) &&
+              compressed.right - compressed.left >= 176.0f &&
+              compressed.right - compressed.left < single.right - single.left,
+              L"chrome: adding tabs compresses long titles before hiding any");
+        const auto many_long = long_crowded(8, 7);
+        D2D1_RECT_F active_long{}, hidden_long{};
+        Check(chrome.TabItemRect(many_long, crowd_w, 7, &active_long) &&
+              active_long.right - active_long.left >= 176.0f &&
+              !chrome.TabItemRect(many_long, crowd_w, 0, &hidden_long),
+              L"chrome: excess tabs reach the minimum before moving into the overflow menu");
+        const float long_y = (active_long.top + active_long.bottom) * 0.5f;
+        float last_visible = -1.0f, overflow_x = -1.0f, new_left = -1.0f;
+        for (float x = 0.0f; x < crowd_w; x += 1.0f) {
+            const auto hit = chrome.HitTest(many_long, crowd_rect, x, long_y);
+            if (hit.region == ui::HitTestResult::Tab || hit.region == ui::HitTestResult::TabClose)
+                last_visible = x;
+            if (hit.region == ui::HitTestResult::TabScroll && !hit.label.empty() && hit.label[0] == L'+')
+                overflow_x = x;
+            if (hit.region == ui::HitTestResult::TabNew && new_left < 0.0f) new_left = x;
+        }
+        Check(overflow_x > last_visible && overflow_x < new_left,
+              L"chrome: compressed tabs and the overflow menu stay before new-tab");
     }
     {
+        ui::MainRenderer scroll_chrome;
+        scroll_chrome.SetScale(1.0f);
+        scroll_chrome.SetVerticalTabs(true);
+        auto vm = crowded(40, 30);
+        scroll_chrome.UpdateTabLayout(vm, crowd_w);
+        D2D1_RECT_F active_rc{}, other_rc{};
+        Check(scroll_chrome.TabItemRect(vm, crowd_w, 30, &active_rc) &&
+              scroll_chrome.TabItemRect(vm, crowd_w, 29, &other_rc) &&
+              std::abs((active_rc.right - active_rc.left) - 224.0f) < 0.01f &&
+              std::abs((other_rc.right - other_rc.left) - 176.0f) < 0.01f,
+              L"chrome: crowded tabs stop at the minimum width while the active tab keeps room for close");
+        const float mid_y = (active_rc.top + active_rc.bottom) * 0.5f;
+        const auto active_hit = scroll_chrome.HitTest(vm, crowd_rect, (active_rc.left + active_rc.right) * 0.5f, mid_y);
+        Check(active_hit.region == ui::HitTestResult::Tab && active_hit.index == 30,
+              L"chrome: scrolling strip reveals the active tab");
+        const auto other_hit = scroll_chrome.HitTest(vm, crowd_rect, (other_rc.left + other_rc.right) * 0.5f, mid_y);
+        Check(other_hit.region == ui::HitTestResult::Tab && other_hit.index == 29,
+              L"chrome: crowded neighboring tabs retain their title slot");
+        D2D1_RECT_F strip_start{}, first{};
+        const auto one_tab = crowded(1, 0);
+        scroll_chrome.UpdateTabLayout(one_tab, crowd_w);
+        scroll_chrome.TabItemRect(one_tab, crowd_w, 0, &strip_start);
+        const float view_left = strip_start.left + 24.0f; // kTabScrollArrowW
+        scroll_chrome.UpdateTabLayout(vm, crowd_w);
+        scroll_chrome.TabItemRect(vm, crowd_w, 0, &first);
+        const auto left_arrow = scroll_chrome.HitTest(vm, crowd_rect, strip_start.left + 12.0f, mid_y);
+        Check(left_arrow.region == ui::HitTestResult::TabScroll && left_arrow.index == -1 && first.right <= view_left,
+              L"chrome: earlier tabs are scrolled behind the left arrow");
+        Check(scroll_chrome.ScrollTabStrip(vm, crowd_w, 400.0f, mid_y, 100.0f) &&
+              scroll_chrome.TabItemRect(vm, crowd_w, 0, &first) && first.left >= view_left - 0.01f,
+              L"chrome: wheel scrolls the strip back to the first tab");
+        Check(!scroll_chrome.ScrollTabStrip(crowded(3, 0), crowd_w, 400.0f, mid_y, 1.0f),
+              L"chrome: a strip that fits ignores the wheel");
         // Tabs below the maximum width, where a close would otherwise reflow them.
         int count = 4;
         for (D2D1_RECT_F probe{}; count < 30; ++count) {
-            chrome.TabItemRect(crowded(count, count - 1), 1400.0f, 0, &probe);
+            scroll_chrome.TabItemRect(crowded(count, count - 1), 1400.0f, 0, &probe);
             if (probe.right - probe.left < 239.0f) break;
         }
         auto vm = crowded(count, count - 1);
         D2D1_RECT_F before{}, frozen{}, released{};
-        chrome.TabItemRect(vm, 1400.0f, 0, &before);
-        chrome.FreezeTabWidths(vm, 1400.0f);
+        scroll_chrome.TabItemRect(vm, 1400.0f, 0, &before);
+        scroll_chrome.FreezeTabWidths(vm, 1400.0f);
         vm.tabs.pop_back();
         vm.tabs.back().active = true;
-        chrome.TabItemRect(vm, 1400.0f, 0, &frozen);
+        scroll_chrome.TabItemRect(vm, 1400.0f, 0, &frozen);
         Check(std::abs((frozen.right - frozen.left) - (before.right - before.left)) < 0.01f,
               L"chrome: closing a tab keeps tab widths while the pointer stays");
-        Check(chrome.ReleaseTabWidths() && chrome.TabItemRect(vm, 1400.0f, 0, &released) &&
-              released.right - released.left > frozen.right - frozen.left + 1.0f && !chrome.ReleaseTabWidths(),
+        Check(scroll_chrome.ReleaseTabWidths() && scroll_chrome.TabItemRect(vm, 1400.0f, 0, &released) &&
+              released.right - released.left > frozen.right - frozen.left + 1.0f &&
+              !scroll_chrome.ReleaseTabWidths(),
               L"chrome: leaving the strip lets the remaining tabs grow");
     }
 

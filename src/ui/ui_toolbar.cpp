@@ -683,10 +683,26 @@ void MainRenderer::DrawToolbar(const WindowViewModel& vm, const D2D1_RECT_F& rec
         dc->PopAxisAlignedClip();
     }
     DrawAddressSearchChrome(vm, rect.right, theme);
-    MakeBrush(dc,theme.stroke_divider,brStrokeDivider_);
-    FillRect(dc,brStrokeDivider_.get(),left+margin_,title_bar_height_+44*scale_,rect.right-left-2*margin_,scale_);
+    if (layout.rows_toggle.right > layout.rows_toggle.left) {
+        const bool hovered = IsHovered(vm, HitTestResult::ToolbarRowsToggle);
+        if (hovered)
+            painter_.FillRoundedRect(layout.rows_toggle, theme.radius_control * scale_, theme.fill_hover);
+        DrawIconText(layout.rows_toggle.left, layout.rows_toggle.top,
+                     layout.rows_toggle.right - layout.rows_toggle.left,
+                     layout.rows_toggle.bottom - layout.rows_toggle.top,
+                     ToolbarRowsCollapsed() ? kIconChevronDown : kIconChevronUp, L"",
+                     hovered ? theme.text : theme.text_secondary, kIconSmall);
+    }
+    if (!vertical_tabs_ || !ToolbarRowsCollapsed()) {
+        MakeBrush(dc,theme.stroke_divider,brStrokeDivider_);
+        FillRect(dc,brStrokeDivider_.get(),left+margin_,title_bar_height_+44*scale_,rect.right-left-2*margin_,scale_);
+    }
     // Embedded hosts (the file picker) keep the address row only.
     if (embedded_) return;
+    if (ToolbarRowsCollapsed()) {
+        tm.commands.Reset();
+        return;
+    }
     // The command row's plate: the file and pane commands, overflow, pinned
     // commands and apps, Sort / Filter / Group.
     const bool filter_field=!(vm.pane.filter_expand <= 0.015f && !vm.filter_editing);

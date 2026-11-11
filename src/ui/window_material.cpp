@@ -1061,14 +1061,15 @@ bool WindowMaterial::DecodeFailedForTesting(const std::wstring& path) {
 #endif
 
 bool WindowMaterial::DrawSourceCover(ID2D1DeviceContext* dc, const D2D1_RECT_F& dest,
-                                     const std::wstring& path, float blur_px) {
+                                     const std::wstring& path, float blur_px, float opacity) {
+    opacity = std::clamp(opacity, 0.0f, 1.0f);
     // The fallback asks for the same size as the blur: while the decode is
     // pending EnsureBlurred returns null, and a full-size request here would
     // decode 2048 px on the first frame.
     const UINT edge = SourceEdgeForBlur(blur_px);
     if (blur_px > 0.5f) {
         if (ID2D1Bitmap* blurred = EnsureBlurred(dc, dest, path, blur_px)) {
-            dc->DrawBitmap(blurred, dest, 1.0f, D2D1_INTERPOLATION_MODE_LINEAR, nullptr, nullptr);
+            dc->DrawBitmap(blurred, dest, opacity, D2D1_INTERPOLATION_MODE_LINEAR, nullptr, nullptr);
             return true;
         }
         // Effect failure: fall through to the sharp cover rather than no wallpaper.
@@ -1078,7 +1079,7 @@ bool WindowMaterial::DrawSourceCover(ID2D1DeviceContext* dc, const D2D1_RECT_F& 
     const D2D1_SIZE_F size = source->GetSize();
     const D2D1_RECT_F cover = CoverRect(size.width, size.height, dest);
     dc->PushAxisAlignedClip(dest, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
-    dc->DrawBitmap(source, cover, 1.0f, D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC,
+    dc->DrawBitmap(source, cover, opacity, D2D1_INTERPOLATION_MODE_HIGH_QUALITY_CUBIC,
                    nullptr, nullptr);
     dc->PopAxisAlignedClip();
     return true;

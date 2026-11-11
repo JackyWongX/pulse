@@ -104,6 +104,19 @@ void ToolbarTests() {
                 CHECK(query.navigation[3].right == query.navigation[3].left);
                 CHECK(query.search.right - query.search.left >= 200 * scale);
             }
+            for (float search_min : {-1.0f, 0.0f, 520.0f}) {
+                const auto toggle = pulse::ui::MakeResponsiveNavigation(
+                    width * scale, 0, 0, 8 * scale, scale, false, search_min, true);
+                CHECK(toggle.rows_toggle.right - toggle.rows_toggle.left == 32 * scale);
+                CHECK(toggle.rows_toggle.right <= width * scale - 8 * scale);
+                CHECK(toggle.address_text.right <= toggle.rows_toggle.left);
+                if (toggle.search.right > toggle.search.left)
+                    CHECK(toggle.search.right <= toggle.rows_toggle.left ||
+                          toggle.search.left >= toggle.rows_toggle.right);
+                for (const auto& nav : toggle.navigation)
+                    CHECK(nav.right <= nav.left || nav.right <= toggle.rows_toggle.left ||
+                          nav.left >= toggle.rows_toggle.right);
+            }
         }
     }
 }

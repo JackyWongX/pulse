@@ -25,47 +25,24 @@ inline float LerpStops(float t, const float (&v)[5]) noexcept {
     const int i = (std::min)(3, static_cast<int>(t));
     return v[i] + (v[i + 1] - v[i]) * (t - static_cast<float>(i));
 }
-// transparency: 0..100 slider; 25/50/75 reproduce the former
-// subtle/balanced/vivid tables exactly.
+// Acrylic/Mica transparency: 0..100 slider; 25/50/75 reproduce the former
+// subtle/balanced/vivid surface tables exactly.
 // frame: 侧边栏与标题栏 0..100 (AppPrefs::frame_transparency), only for
 // Acrylic / Mica: 10 gives what the three layers gave before it existed.
+inline float WallpaperImageOpacity(int transparency) noexcept {
+    return static_cast<float>(std::clamp(transparency, 0, 100)) / 100.0f;
+}
+
 inline LayerAlphas ComputeLayerAlphas(bool image_mode, bool backdrop_drawn,
                                       bool backdrop_enabled, bool dark,
-                                      int transparency, int wallpaper_blur,
+                                      int transparency, [[maybe_unused]] int wallpaper_blur,
                                       int frame = 10) noexcept {
     LayerAlphas a;
     const float t = static_cast<float>(std::clamp(transparency, 0, 100)) / 100.0f;
     if (image_mode) {
         // Decode failure stays opaque rather than exposing the desktop.
         if (!backdrop_drawn) return a;
-        // Keep the former 90% appearance, then fade all image scrims out to
-        // the unmodified wallpaper at the new 100% endpoint.
-        const float scrim_fade = std::clamp((1.0f - t) * 10.0f, 0.0f, 1.0f);
-        // Dark wallpaper uses the legacy single scrim. Balanced restores
-        // its 55% cover; blur affects image detail, not the tint strength.
-        if (dark) {
-            static constexpr float cover[5] = {0.85f, 0.70f, 0.55f, 0.40f, 0.25f};
-            return {LerpStops(t, cover) * scrim_fade, 0.0f, 0.0f};
-        }
-        // Light: the pane card stays thin so the middle reads about as
-        // see-through as the dark scrim (60, unblurred: title 42%, sheet 46%,
-        // card 26%).
-        static constexpr float kTitle[5] = {0.62f, 0.50f, 0.40f, 0.30f, 0.22f};
-        static constexpr float kSheet[5] = {0.66f, 0.54f, 0.42f, 0.32f, 0.24f};
-        static constexpr float kCard[5] = {0.55f, 0.38f, 0.24f, 0.15f, 0.08f};
-        a.title = LerpStops(t, kTitle);
-        a.sheet = LerpStops(t, kSheet);
-        a.card = LerpStops(t, kCard);
-        // Text sits on these layers; unblurred detail needs a little more cover.
-        if (wallpaper_blur <= 0) {
-            a.title = (std::min)(1.0f, a.title + 0.06f);
-            a.sheet = (std::min)(1.0f, a.sheet + 0.08f);
-            a.card = (std::min)(1.0f, a.card + 0.06f);
-        }
-        a.title *= scrim_fade;
-        a.sheet *= scrim_fade;
-        a.card *= scrim_fade;
-        return a;
+        return {0.0f, 0.0f, 0.0f};
     }
     if (backdrop_drawn) a.title = 0.0f;
     else if (backdrop_enabled) a.title = dark ? 0.72f : 0.78f;

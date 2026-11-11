@@ -129,6 +129,13 @@ public:
         vertical_tabs_ = on && !embedded_;
         toolbar_height_ = ToolbarHeightDip() * scale_;
     }
+    bool ToolbarRowsCollapsed() const { return toolbar_rows_collapsed_ && !embedded_; }
+    void SetToolbarRowsCollapsed(bool on) {
+        if (embedded_ || toolbar_rows_collapsed_ == on) return;
+        toolbar_rows_collapsed_ = on;
+        toolbar_height_ = ToolbarHeightDip() * scale_;
+        pane_header_height_ = (on ? 0.0f : 40.0f) * scale_;
+    }
     // 收藏栏: one more row under the command row (never in embedded hosts).
     void SetFavoritesBar(bool on) {
         favorites_bar_ = on && !embedded_;
@@ -143,7 +150,10 @@ public:
     }
     FavoritesBarLayout FavoritesBarLayoutAt(const WindowViewModel& vm, float window_width) const;
     float ToolbarHeightDip() const {
-        return (vertical_tabs_ || embedded_ ? 44.0f : 88.0f) + (favorites_bar_ ? kFavoritesBarHeightDip : 0.0f);
+        const float rows = embedded_ ? 44.0f : vertical_tabs_
+            ? (ToolbarRowsCollapsed() ? 0.0f : 44.0f)
+            : (ToolbarRowsCollapsed() ? 44.0f : 88.0f);
+        return rows + (favorites_bar_ ? kFavoritesBarHeightDip : 0.0f);
     }
     // Hosted inside another window (the file picker): no title bar, tabs,
     // command row, status bar or details panel; only the address row, the
@@ -1108,11 +1118,12 @@ private:
     float embedded_bottom_dip_ = 0.0f;
     float scale_ = 1.0f;
     float title_bar_height_ = kTitleBarHeight;
-    float toolbar_height_ = 88.0f;
+    float toolbar_height_ = 44.0f;
     float status_height_ = 28.0f;
     float sidebar_width_ = 224.0f;
     float sidebar_width_dip_ = 224.0f;
     bool vertical_tabs_ = false;
+    bool toolbar_rows_collapsed_ = true;
     float search_min_dip_ = 0.0f;
     bool navigation_can_forward_ = false;
     mutable float title_brand_width_ = 0.0f;
@@ -1159,7 +1170,7 @@ private:
     static constexpr float kSidebarCollapseMs = 200.0f;
     mutable bool pane_close_visible_ = false;
     mutable bool pane_expand_visible_ = false;
-    float pane_header_height_ = 40.0f;
+    float pane_header_height_ = 0.0f;
     float focused_banner_height_ = 0.0f;
     float column_header_height_ = 32.0f;
     float row_height_ = 34.0f;

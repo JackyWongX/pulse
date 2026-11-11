@@ -715,6 +715,15 @@ void Render(AppState& s) {
             D2D1::RectF(static_cast<float>(edit_bounds.left), static_cast<float>(edit_bounds.top),
                 static_cast<float>(edit_bounds.right), static_cast<float>(edit_bounds.bottom)));
     }
+    if (s.accentHexEditing && s.hwndAccentHexEdit && IsWindowVisible(s.hwndAccentHexEdit)) {
+        RECT edit_bounds{};
+        GetClientRect(s.hwndAccentHexEdit, &edit_bounds);
+        MapWindowPoints(s.hwndAccentHexEdit, s.hwnd, reinterpret_cast<POINT*>(&edit_bounds), 2);
+        ui::DrawPulsePaintedChildEdit(s.compositor, HostedEditFormat(s, s.hwndAccentHexEdit),
+            HostedEditForeground(s), HostedEditBackground(s), s.hwndAccentHexEdit,
+            D2D1::RectF(static_cast<float>(edit_bounds.left), static_cast<float>(edit_bounds.top),
+                static_cast<float>(edit_bounds.right), static_cast<float>(edit_bounds.bottom)));
+    }
     DrawThemeReveal(s, dc, rect);
     if (partial) dc->PopAxisAlignedClip();
     s.renderer.SetFrameDamage(nullptr);
@@ -773,6 +782,7 @@ void Render(AppState& s) {
     if (!s.tagRenameId.empty()) LayoutTagRenameOverlay(s);
     if (!s.workspaceRenameRoot.empty()) LayoutWorkspaceRenameOverlay(s);
     if (s.addressEditing) LayoutAddressEditor(s);
+    if (s.accentHexEditing) LayoutAccentHexEditor(s);
     LayoutSettingsSearch(s);
     if (s.filterEditing) LayoutFilterEditor(s);
     AiAssistantLayout(s);
@@ -1048,6 +1058,51 @@ static void RestoreTabsFromSnapshots(AppState& s, const std::vector<app::LayoutT
             app::ApplySplitRatios(*s.window_tabs.items[i]->root, layout_tabs[i].split_ratios);
     }
     BindCurrentLayout(s);
+}
+
+static void AppendRestoredTabs(AppState& s, const app::ClosedWindow& restore, bool activate) {
+    if (restore.layout_tabs.empty()) return;
+    s.window_tabs.EnsureDefault();
+    const app::LayoutTab* const previous = s.window_tabs.Active();
+    app::WindowTabs incoming;
+    AppState* const state = &s;
+    app::RestoreWindowTabs(
+        incoming, restore.layout_tabs, restore.tab_groups, restore.active_layout_tab,
+        [state](app::Tab& tab, const std::wstring& path) {
+            WarmupUnc(*state, path);
+            StartLoadingPath(*state, tab, path, PathLoadReason::RestoreSession);
+        });
+    std::unordered_map<int, int> group_ids;
+    for (const auto& group : restore.tab_groups) {
+        if (group.id <= 0 || group_ids.contains(group.id)) continue;
+        const int id = s.window_tabs.next_tab_group_id++;
+        group_ids.emplace(group.id, id);
+        s.window_tabs.tab_groups.push_back({id, group.name, group.color_rgb, group.collapsed});
+    }
+    app::LayoutTab* activated = nullptr;
+    for (size_t i = 0; i < incoming.items.size(); ++i) {
+        auto& layout = incoming.items[i];
+        if (!layout) continue;
+        const auto group = group_ids.find(layout->tab_group);
+        layout->tab_group = group == group_ids.end() ? 0 : group->second;
+        app::RebuildLayoutRoot(*layout);
+        if (i < restore.layout_tabs.size() && layout->root &&
+            !restore.layout_tabs[i].split_ratios.empty())
+            app::ApplySplitRatios(*layout->root, restore.layout_tabs[i].split_ratios);
+        if (activate && static_cast<int>(i) == restore.active_layout_tab) activated = layout.get();
+        s.window_tabs.InsertTab(std::move(layout), s.window_tabs.items.size());
+    }
+    const app::LayoutTab* const want = activate ? activated : previous;
+    if (want) {
+        for (size_t i = 0; i < s.window_tabs.items.size(); ++i) {
+            if (s.window_tabs.items[i].get() != want) continue;
+            s.window_tabs.SwitchTab(i);
+            break;
+        }
+    }
+    BindCurrentLayout(s);
+    RevalidateVisibleFolders(s);
+    if (s.hwnd) InvalidateRect(s.hwnd, nullptr, FALSE);
 }
 
 // Ctrl+Shift+M (M4e, plan §8.4; M5c): the active tab itself moves to a new
@@ -2515,6 +2570,29 @@ LRESULT CALLBACK WndProcImpl(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
 
     case WM_OPEN_SESSION_WINDOWS:
         if (s) OpenSessionWindows(*s);
+        return 0;
+
+    case WM_OPEN_WINDOW_AS_TAB:
+        if (s) {
+            const auto* request = reinterpret_cast<const WindowInit*>(lParam);
+            if (request) {
+                if (request->restore) {
+                    AppendRestoredTabs(*s, *request->restore, request->activate_restored_tabs);
+                } else if (request->adopt_from) {
+                    if (request->adopt_from != s) {
+                        if (!MoveLayoutTab(*request->adopt_from, request->adopt_index, *s,
+                                           s->window_tabs.items.size()) && !request->path.empty())
+                            OpenTabAt(*s, request->path);
+                    } else if (request->adopt_index < s->window_tabs.items.size()) {
+                        SwitchTab(*s, request->adopt_index);
+                    } else if (!request->path.empty()) {
+                        OpenTabAt(*s, request->path);
+                    }
+                } else {
+                    OpenTabAt(*s, request->path);
+                }
+            }
+        }
         return 0;
 
     case WM_MOVE_TAB_TO_NEW_WINDOW:

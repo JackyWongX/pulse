@@ -5102,6 +5102,10 @@ enum class StringId : UINT {
     ArchivePluginRequired = IDS_ARCHIVE_PLUGIN_REQUIRED,
     ArchivePluginMigrationTitle = IDS_ARCHIVE_PLUGIN_MIGRATION_TITLE,
     ArchivePluginMigrationBody = IDS_ARCHIVE_PLUGIN_MIGRATION_BODY,
+    SettingsInvalidHexColor = IDS_SETTINGS_INVALID_HEX_COLOR,
+    SettingsHexEditorUnavailable = IDS_SETTINGS_HEX_EDITOR_UNAVAILABLE,
+    ToolbarRowsExpand = IDS_TOOLBAR_ROWS_EXPAND,
+    ToolbarRowsCollapse = IDS_TOOLBAR_ROWS_COLLAPSE,
 };
 
 bool IsLanguageId(std::wstring_view id) noexcept;

@@ -180,6 +180,7 @@ void MainRenderer::SetScale(float scale) {
     status_height_ = (embedded_ ? embedded_bottom_dip_ : 28.0f) * scale;
     sidebar_width_ = sidebar_width_dip_ * scale;
     pane_header_height_ = 40.0f * scale;
+    if (ToolbarRowsCollapsed()) pane_header_height_ = 0.0f;
     column_header_height_ = 32.0f * scale;
     row_height_ = row_height_dip_ * scale;
     margin_ = 4.0f * scale;
@@ -375,7 +376,7 @@ ToolbarLayout MainRenderer::ToolbarLayoutAt(float w, float create_width, float f
     if (!vertical_tabs_)
         return MakeToolbarLayout(w, scale_, title_bar_height_, margin_, create_width, left, filter_expand,
                                  search_hidden_ ? -1.0f : search_min_dip_, group_width, sort_width, filter_width, pin_count_,
-                                 selection_span, pins, navigation_can_forward_);
+                                 selection_span, pins, navigation_can_forward_, !embedded_);
     // Command row directly under the title bar; address row centered in it,
     // stopping short of the settings button.
     ToolbarLayout out = MakeToolbarLayout(w, scale_, title_bar_height_ - 46.0f * scale_, margin_,
@@ -385,11 +386,12 @@ ToolbarLayout MainRenderer::ToolbarLayoutAt(float w, float create_width, float f
     const float row_top = (title_bar_height_ - 36.0f * scale_) * 0.5f - 4.0f * scale_;
     const ToolbarLayout row = MakeToolbarLayout(chrome.windows_left - 4.0f * scale_, scale_, row_top,
                                                 margin_, create_width, left, 0.0f, search_hidden_ ? -1.0f : search_min_dip_,
-                                                0, 0, 0, 0, 0, {}, navigation_can_forward_);
+                                                0, 0, 0, 0, 0, {}, navigation_can_forward_, !embedded_);
     out.navigation = row.navigation;
     out.address = row.address;
     out.search = row.search;
     out.address_text = row.address_text;
+    out.rows_toggle = row.rows_toggle;
     out.navigation_tier = row.navigation_tier;
     out.refresh_inside = row.refresh_inside;
     out.merged_search = row.merged_search;
@@ -1364,9 +1366,8 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
     painter_.BeginFrame(theme, IsHighContrast());
     PULSE_SCENE_MARK("scene_resources");
 
-    // None effect + selected image: the (optionally blurred) wallpaper covers
-    // the window base; the title scrim, one shared sheet and the pane cards
-    // stack over it with the opacities from ComputeLayerAlphas.
+    // None effect + selected image: draw the wallpaper at the slider opacity
+    // without adding title, sheet, or card scrims over it.
     const bool image_mode = vm.window_effect == WindowEffect::None &&
                             !vm.background_image.empty() && !IsHighContrast();
     bool backdrop_drawn = false;
@@ -1374,7 +1375,8 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
         // The host window owns the backdrop; only the shared sheet is tinted.
     } else if (image_mode) {
         backdrop_drawn = material_.DrawSourceCover(dc, rect, vm.background_image,
-                                                   WallpaperBlurDip(vm.wallpaper_blur) * scale_);
+                                                   WallpaperBlurDip(vm.wallpaper_blur) * scale_,
+                                                   WallpaperImageOpacity(vm.wallpaper_look));
     } else {
         backdrop_drawn = material_.DrawBackdrop(
             dc, rect, vm.window_effect, vm.dark,
@@ -2184,7 +2186,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             // the tab runs into the content below with no seam (a white plate
             // stood out against the light sheet). A tab floating in an upper
             // row is not joined to the sheet and reads as a card instead.
-            MakeBrush(dc, connect ? WithAlpha(theme.surface_sheet, sheet_alpha_) : theme.surface_card, brFillSelected_);
+            MakeBrush(dc, IsHighContrast() ? theme.fill_selected : theme.accent, brFillSelected_);
             FillChromeTab(dc, brFillSelected_.get(), tabRc, shape);
         } else {
             // Grouped tabs get a tinted body; ungrouped keep the stock look.
@@ -2247,6 +2249,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             // On dark the accent is lifted a little so the bar reads against
             // the near-black sheet as clearly as it does on light.
             const D2D1_COLOR_F bar = vm.tabs[i].color_rgb ? HexColor(vm.tabs[i].color_rgb)
+                : active ? theme.accent_text
                 : vm.dark && !IsHighContrast() ? MixColor(theme.accent, HexColor(0xFFFFFF), 0.22f) : theme.accent;
             MakeBrush(dc, bar, brAccent_);
             if (bar_w > 0.0f)
@@ -2260,7 +2263,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
                 vm.tabs[i].title.empty() ? kIconFolder
                     : vm.tabs[i].title == pulse::l10n::Get(pulse::l10n::StringId::Settings)
                         ? kIconSettings : kIconFolder, L"[]",
-                active ? theme.icon_folder : theme.text_secondary, 0.85f);
+                active ? theme.accent_text : theme.text_secondary, 0.85f);
             return;
         }
         const float markerReserve = vm.tabs[i].marker_rgb != 0 ? 12.0f * scale_ : 0.0f;
@@ -2272,10 +2275,10 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         DrawIconText(left + 6.0f * scale_ + markerReserve, tabY, 16.0f * scale_, tabH,
             vm.tabs[i].title == pulse::l10n::Get(pulse::l10n::StringId::Settings)
                 ? kIconSettings : kIconFolder, L"[]",
-            active ? theme.icon_folder : theme.text_secondary, 0.85f);
+            active ? theme.accent_text : theme.text_secondary, 0.85f);
         // .tab / .tab.on: inactive titles step back to the secondary text in
         // both themes and come forward on hover; the active one is full text.
-        MakeBrush(dc, active || hovered ? theme.text : theme.text_secondary, brText_);
+        MakeBrush(dc, active ? theme.accent_text : hovered ? theme.text : theme.text_secondary, brText_);
         const bool show_close = TabCloseVisible(vm, static_cast<int>(i), tabW, scale_);
         const float closeSz = kTabCloseSizeDip * scale_;
         const float closePad = kTabClosePadDip * scale_;
@@ -2284,7 +2287,8 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         const float titleLeft = left + 24.0f * scale_ + markerReserve;
         DrawTabTitleFaded(compositor_, compositor_->TabFormat(), brText_.get(),
                           vm.tabs[i].title, titleLeft, tabY,
-                          std::max(0.0f, tabW - 24.0f * scale_ - markerReserve - closeReserve), tabH, scale_);
+                          std::max(0.0f, tabW - 24.0f * scale_ - markerReserve - closeReserve), tabH, scale_,
+                          DWRITE_TEXT_ALIGNMENT_CENTER);
         if (show_close) {
             const float closeY = tabY + (tabH - closeSz) * 0.5f;
             const float closeX = left + tabW - closePad - closeSz;
@@ -2293,7 +2297,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
                 FillRoundedRect(dc, brFillPressed_.get(), closeX, closeY, closeSz, closeSz, r);
             }
             DrawIconText(closeX, closeY, closeSz, closeSz,
-                kIconCloseSmall, L"x", theme.text_secondary, 0.62f);
+                kIconCloseSmall, L"x", active ? theme.accent_text : theme.text_secondary, 0.62f);
         }
     };
     const int dragI = (strip.item_rects.empty() || vm.tab_layout == 0) ? vm.tab_drag_index : -1;
@@ -3291,8 +3295,9 @@ MainRenderer::TabStripMetrics MainRenderer::ComputeTabStrip(
         int active = -1;
         for (size_t i = 0; i < vm.tabs.size(); ++i) {
             const auto& tab = vm.tabs[i];
-            const float width = tab.pinned ? (vm.show_pinned_tab_names ? kTabPinnedNamedW : 36.0f) : 52.0f +
-                MeasureTextWidth(compositor_->DwriteFactory(), compositor_->SmallFormat(), tab.title) / scale_;
+            const float width = tab.pinned ? (vm.show_pinned_tab_names ? kTabPinnedNamedW : 36.0f) :
+                2.0f * (52.0f +
+                    MeasureTextWidth(compositor_->DwriteFactory(), compositor_->SmallFormat(), tab.title) / scale_);
             if (tab.group >= 0 && (i == 0 || vm.tabs[i - 1].group != tab.group) && chip_index < m.chips.size()) {
                 chip_slots.push_back(items.size());
                 items.push_back({m.chips[chip_index++].width / scale_ + 4.0f, true, false});
@@ -3357,48 +3362,71 @@ MainRenderer::TabStripMetrics MainRenderer::ComputeTabStrip(
         std::vector<float> widths(vm.tabs.size());
         std::vector<size_t> visible;
         float total = 0;
+        float fixed_total = 0.0f;
+        float flexible_total = 0.0f;
+        size_t flexible_count = 0;
+        const float min_tab_width = kTabMinW * scale_;
+        const float max_tab_width = kTabMaxW * scale_;
         for (size_t i = 0; i < vm.tabs.size(); ++i) {
             const auto& tab = vm.tabs[i];
             if (tab.hidden) continue;
             visible.push_back(i);
             if (tab.active) m.active = static_cast<int>(i);
-            widths[i] = tab.pinned ? (vm.show_pinned_tab_names ? kTabPinnedNamedW : 36.0f) * scale_ :
-                ((60.0f + (tab.marker_rgb ? 12.0f : 0.0f)) * scale_ +
-                    MeasureTextWidth(compositor_->DwriteFactory(), compositor_->TabFormat(), tab.title));
+            if (tab.pinned) {
+                widths[i] = (vm.show_pinned_tab_names ? kTabPinnedNamedW : 36.0f) * scale_;
+                fixed_total += widths[i];
+            } else {
+                const float title_width = MeasureTextWidth(
+                    compositor_->DwriteFactory(), compositor_->TabFormat(), tab.title);
+                const float preferred = (112.0f + (tab.marker_rgb ? 12.0f : 0.0f)) * scale_ +
+                    title_width;
+                widths[i] = std::clamp(preferred, min_tab_width, max_tab_width);
+                flexible_total += widths[i];
+                ++flexible_count;
+            }
             total += widths[i];
         }
         const float gaps = visible.empty() ? 0 : static_cast<float>(visible.size()-1)*gap;
         if (total + gaps > available && !visible.empty()) {
-            const float each = (available-gaps)/static_cast<float>(visible.size());
-            if (each >= 104.0f*scale_) {
-                for (const auto i : visible) widths[i] = std::min(widths[i],each);
-            } else {
-                const size_t active = m.active >= 0 ? static_cast<size_t>(m.active) : visible.front();
-                const float active_width = std::min(widths[active],140.0f*scale_);
-                for (const auto i : visible) {
-                    widths[i] = i == active ? active_width : 40.0f*scale_;
-                    m.icon_only[i] = i != active;
-                }
-                const float icons_total = active_width + static_cast<float>(visible.size()-1)*(40.0f*scale_+gap);
-                if (icons_total > available) {
-                    const float reserve = std::min(44.0f*scale_,available*.5f);
-                    overflow_width = reserve;
-                    widths[active] = std::max(0.0f,std::min(active_width, available-reserve-2*gap));
-                    if (widths[active] < 56.0f*scale_) m.icon_only[active] = true;
-                    std::vector<size_t> nearest;
-                    for (const auto i : visible) if (i != active) nearest.push_back(i);
-                    std::stable_sort(nearest.begin(),nearest.end(),[active](size_t a,size_t b) {
-                        return std::abs(static_cast<int>(a)-static_cast<int>(active)) <
-                               std::abs(static_cast<int>(b)-static_cast<int>(active));
-                    });
-                    const int keep = std::max(0,static_cast<int>((available-widths[active]-reserve)/(42.0f*scale_)));
-                    for (size_t j = static_cast<size_t>(keep); j < nearest.size(); ++j) {
-                        widths[nearest[j]] = 0;
-                        m.hidden_indices.push_back(static_cast<int>(nearest[j]));
-                    }
-                    std::sort(m.hidden_indices.begin(),m.hidden_indices.end());
+            const float flexible_budget = available - gaps - fixed_total;
+            const float minimum_flexible_total = min_tab_width * static_cast<float>(flexible_count);
+            if (flexible_count > 0 && flexible_total > flexible_budget) {
+                const float flex_range = flexible_total - minimum_flexible_total;
+                const float compression = flex_range > 0.0f && flexible_budget > minimum_flexible_total
+                    ? std::clamp((flexible_budget - minimum_flexible_total) / flex_range, 0.0f, 1.0f)
+                    : 0.0f;
+                total = fixed_total;
+                for (const size_t i : visible) {
+                    if (vm.tabs[i].pinned) continue;
+                    widths[i] = min_tab_width + (widths[i] - min_tab_width) * compression;
+                    total += widths[i];
                 }
             }
+        }
+        if (total + gaps > available && !visible.empty()) {
+            const size_t active = m.active >= 0 ? static_cast<size_t>(m.active) : visible.front();
+            std::vector<size_t> priority = visible;
+            std::stable_sort(priority.begin(), priority.end(), [active](size_t a, size_t b) {
+                return std::abs(static_cast<int>(a) - static_cast<int>(active)) <
+                       std::abs(static_cast<int>(b) - static_cast<int>(active));
+            });
+            overflow_width = visible.size() > 1
+                ? std::min(overflow_width, available * 0.5f) : 0.0f;
+            const float tab_budget = std::max(0.0f, available - overflow_width);
+            float used = 0.0f;
+            for (const size_t i : priority) {
+                const float cost = widths[i] + gap;
+                if (used + cost <= tab_budget) {
+                    used += cost;
+                } else if (i == active && used == 0.0f && tab_budget > gap) {
+                    widths[i] = tab_budget - gap;
+                    used = tab_budget;
+                } else {
+                    widths[i] = 0.0f;
+                    m.hidden_indices.push_back(static_cast<int>(i));
+                }
+            }
+            std::sort(m.hidden_indices.begin(), m.hidden_indices.end());
         }
         float x = m.x0;
         size_t chip_index = 0;
@@ -3447,16 +3475,13 @@ MainRenderer::TabStripMetrics MainRenderer::ComputeTabStrip(
         // Recently closed: keep the widths the pointer was aiming at.
         m.w = tab_freeze_w_;
         m.active_w = tab_freeze_active_w_;
-    } else if (visibleCount == 0 || normalW >= minW) {
-        m.w = visibleCount == 0 ? 0.0f : std::min(kTabMaxW * scale_, normalW);
-        m.active_w = m.w;
+    } else if (visibleCount == 0) {
+        m.w = m.active_w = 0.0f;
     } else {
-        // Crowded: tabs stop shrinking at the minimum and keep their titles;
-        // the strip scrolls instead (Edge's scrollable tab strip). The active
-        // tab always shows close, so it gets that room on top.
-        m.w = minW;
-        m.active_w = m.active >= 0 ? kTabActiveMinW * scale_ : m.w;
-        m.overflow = true;
+        m.w = std::clamp(normalW, minW, kTabMaxW * scale_);
+        m.active_w = m.active >= 0 && normalW < minW * 0.5f
+            ? (std::max)(m.w, kTabActiveMinW * scale_) : m.w;
+        m.overflow = m.w > normalW + 0.5f || m.active_w > m.w + 0.5f;
     }
     if (m.active < 0) m.active_w = m.w;
     m.y = 4.0f * scale_;

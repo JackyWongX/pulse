@@ -2862,13 +2862,14 @@ ui::WindowViewModel BuildVm(AppState& s, bool probe_details) {
     vm.settings_startup_open = s.appPrefs.startup_open;
     vm.settings_notify_icon = s.appPrefs.notify_icon_mode;
     vm.settings_new_tab_open = s.appPrefs.new_tab_open;
-    vm.settings_open_pulse_icon = s.appPrefs.open_pulse_icon;
+    vm.settings_open_pulse_icon = s.appPrefs.open_pulse_icon == 2 ? 2 : 1;
     vm.settings_new_window_shows = s.appPrefs.new_window_shows;
     vm.settings_arrange_include_minimized = s.appPrefs.arrange_include_minimized;
     vm.settings_arrange_gap = s.appPrefs.arrange_gap;
     vm.settings_open_this_pc = s.appPrefs.open_this_pc;
-    vm.settings_open_win_e = s.appPrefs.open_win_e;
-    vm.settings_external_open = s.appPrefs.external_open;
+    vm.settings_open_win_e = 1;
+    vm.settings_external_open = 1;
+    vm.settings_accent_hex_edit_visible = s.accentHexEditing;
     vm.settings_close_last_tab = s.appPrefs.close_window_with_last_tab;
     vm.settings_close_tab_double_click = s.appPrefs.close_tab_on_double_click;
     vm.settings_confirm_delete = s.appPrefs.confirm_recycle_delete;
@@ -3770,6 +3771,8 @@ std::wstring TooltipForHover(AppState& s) {
     case R::NavForward: return text(I::Forward);
     case R::NavUp: return text(I::Up);
     case R::NavRefresh: return text(I::Refresh);
+    case R::ToolbarRowsToggle:
+        return text(s.renderer.ToolbarRowsCollapsed() ? I::ToolbarRowsExpand : I::ToolbarRowsCollapse);
     case R::NewButton:
         if (const app::Tab* tab = ActiveTab(s); tab && IsConnectServerPage(tab->current_path))
             return text(I::ConnectServerHint);

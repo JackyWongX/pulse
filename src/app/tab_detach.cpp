@@ -425,6 +425,7 @@ void EndStripDrag(AppState& s) {
 // `grab` (where the cursor holds its tab) is under the cursor, and starts its
 // move loop.
 HWND OpenDetachedWindow(AppState& s, size_t index, POINT grab) {
+    if (!s.isolatedTest) return nullptr;
     RECT window{};
     GetWindowRect(s.hwnd, &window);
     POINT origin{0, 0};

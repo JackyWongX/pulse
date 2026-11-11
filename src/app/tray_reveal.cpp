@@ -5,6 +5,21 @@
 #include "window_identity_ui.h"
 
 namespace pulse {
+namespace {
+
+void BringWindowToFront(HWND hwnd) {
+    if (!hwnd) return;
+    const HWND foreground = GetForegroundWindow();
+    if (foreground == hwnd) return;
+    const DWORD self = GetCurrentThreadId();
+    const DWORD other = foreground ? GetWindowThreadProcessId(foreground, nullptr) : 0;
+    const bool attached = other && other != self && AttachThreadInput(self, other, TRUE);
+    SetForegroundWindow(hwnd);
+    BringWindowToTop(hwnd);
+    if (attached) AttachThreadInput(self, other, FALSE);
+}
+
+} // namespace
 
 void HideMainWindowToTray(AppState& s) {
     s.hidden_to_tray = true;
@@ -20,6 +35,7 @@ void RevealWindow(AppState& s) {
         ShowWindow(s.hwnd, IsIconic(s.hwnd) ? SW_RESTORE : SW_SHOW);
         SetForegroundWindow(s.hwnd);
     }
+    BringWindowToFront(s.hwnd);
     // Back on screen: it counts again (the restore hook cleared the flag).
     s.hidden_to_tray = false;
     SyncWindowIdentities(s);

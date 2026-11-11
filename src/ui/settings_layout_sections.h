@@ -150,6 +150,9 @@ float LayoutSettingsGeneral(SettingsLayout& l, const WindowViewModel& vm, float 
                 l.accent_custom_head=row(64,true);
                 l.accent_custom_swatch=D2D1::RectF(right-16*scale-120*scale,l.accent_custom_head.top+16*scale,
                     right-16*scale,l.accent_custom_head.top+48*scale);
+                const float chip_size=l.accent_custom_swatch.bottom-l.accent_custom_swatch.top;
+                l.accent_custom_hex=D2D1::RectF(l.accent_custom_swatch.left+chip_size+10*scale,
+                    l.accent_custom_swatch.top,l.accent_custom_swatch.right,l.accent_custom_swatch.bottom);
                 for(int i=0;i<3;++i) {
                     l.accent_slider_row[i]=row(seg_h,true);
                     segments(l.accent_slider_row[i],l.accent_slider_cells[i],3,narrow ? 300.0f : 360.0f);
@@ -278,9 +281,9 @@ float LayoutSettingsGeneral(SettingsLayout& l, const WindowViewModel& vm, float 
         l.startup_open_card=row(seg_h); fitted_segments(l.startup_open_card,l.startup_open_row,{I::StartupOpenLastTabs,I::OpenDefaultLocation});
         l.new_tab_open_card=row(seg_h); fitted_segments(l.new_tab_open_card,l.new_tab_open_row,{I::NewTabOpenCurrent,I::OpenDefaultLocation});
         section(I::SettingsSecOpenWindows);
-        l.open_pulse_icon_card=row(narrow ? 108.0f : 64.0f); fitted_segments(l.open_pulse_icon_card,l.open_pulse_icon_row,{I::ExternalOpenWindow,I::ExternalOpenTab,I::OpenWindowActivate});
+        l.open_pulse_icon_card=row(narrow ? 108.0f : 64.0f); fitted_segments(l.open_pulse_icon_card,l.open_pulse_icon_row,{I::ExternalOpenTab,I::OpenWindowActivate});
         l.new_window_shows_card=row(narrow ? 108.0f : 64.0f); fitted_segments(l.new_window_shows_card,l.new_window_shows_row,{I::OpenWindowStartup,I::OpenWindowThisPc,I::NewTabOpenCurrent});
-        l.external_open_card=row(seg_h); fitted_segments(l.external_open_card,l.external_open_row,{I::ExternalOpenSmart,I::ExternalOpenTab,I::ExternalOpenWindow});
+        l.external_open_card=row(seg_h);
 
         section(I::SettingsSecArrangeWindows);
         l.arrange_minimized_row=row(64);

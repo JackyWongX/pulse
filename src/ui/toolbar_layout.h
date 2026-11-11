@@ -33,6 +33,7 @@ struct ToolbarPinOptions {
 struct ToolbarLayout {
     std::array<D2D1_RECT_F, 4> navigation{};
     D2D1_RECT_F address{}, search{}, create{};
+    D2D1_RECT_F rows_toggle{};
     D2D1_RECT_F sort{}, filter{}, overflow{};
     D2D1_RECT_F group{};   // "Group" button / active chip (empty when not offered)
     std::array<D2D1_RECT_F, 8> commands{};
@@ -55,13 +56,15 @@ inline ToolbarLayout MakeToolbarLayout(float width, float scale, float top, floa
                                       float group_width = 0.0f, float sort_width = 0.0f,
                                       float filter_width = 0.0f, int pin_count = 0,
                                       float selection_span = 0.0f, const ToolbarPinOptions& pin_options = {},
-                                      bool can_forward = true) {
+                                      bool can_forward = true, bool show_rows_toggle = false) {
     ToolbarLayout out;
     const float available = width - left;
-    const auto navigation = MakeResponsiveNavigation(width, left, top, margin, scale, can_forward, search_min_dip);
+    const auto navigation = MakeResponsiveNavigation(width, left, top, margin, scale, can_forward,
+                                                     search_min_dip, show_rows_toggle);
     out.navigation = navigation.navigation;
     out.address = navigation.address;
     out.search = navigation.search;
+    out.rows_toggle = navigation.rows_toggle;
     out.address_text = navigation.address_text;
     out.navigation_tier = navigation.tier;
     out.refresh_inside = navigation.refresh_inside;

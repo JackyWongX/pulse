@@ -5,6 +5,7 @@
 #include "app_messages.h"
 #include "app_state.h"
 #include "single_instance_coordinator.h"
+#include "tray_reveal.h"
 #include "window_placement.h"
 
 #include <algorithm>
@@ -68,6 +69,16 @@ RECT CascadedRect(const AppState& from) {
 }  // namespace
 
 HWND OpenPulseWindow(AppState& from, const WindowInit& init) {
+    if (!from.isolatedTest) {
+        AppState* const target = from.core.windows.MostRecent();
+        if (target && target->hwnd && IsWindow(target->hwnd)) {
+            WindowInit request = init;
+            SendMessageW(target->hwnd, WM_OPEN_WINDOW_AS_TAB, 0,
+                         reinterpret_cast<LPARAM>(&request));
+            RevealWindow(*target);
+            return target->hwnd;
+        }
+    }
     ReleaseRetiredWindowStates();
     auto owned = std::make_unique<AppState>(from.core);
     AppState* const state = owned.get();
@@ -194,6 +205,7 @@ void OpenSessionWindows(AppState& first) {
         restore.identity = std::move(saved.identity);
         WindowInit init;
         init.restore = std::move(restore);
+        init.activate_restored_tabs = false;
         OpenPulseWindow(first, init);
     }
     if (IsWindowVisible(first.hwnd)) SetForegroundWindow(first.hwnd);

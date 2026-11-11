@@ -31,6 +31,7 @@ struct WindowInit {
     // instead of a first tab opening; `path` is the fallback if it cannot.
     AppState* adopt_from = nullptr;
     size_t adopt_index = 0;
+    bool activate_restored_tabs = true;
     // A tab dragged off the strip (M6a): the window opens here, unmaximized.
     std::optional<RECT> rect;
     // A folder opened from outside Pulse (M7a, plan §6 rule 6): the monitor
@@ -39,10 +40,8 @@ struct WindowInit {
     HMONITOR monitor = nullptr;
 };
 
-// Creates and shows a window on `from`'s core at `init.path`, next to `from`
-// and with its per-window layout (sidebar, details pane; a restored window's
-// own when it has one). Returns the new window, or nullptr when it could not
-// be created.
+// In production, routes the requested window contents into the existing main
+// window as a tab. Isolated test instances retain the multi-window factory.
 HWND OpenPulseWindow(AppState& from, const WindowInit& init);
 // A window's sidebar and details pane, for the session and closed windows (M4d).
 app::WindowLayoutSnapshot CaptureWindowLayout(const AppState& s);

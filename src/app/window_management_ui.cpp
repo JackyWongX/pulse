@@ -52,7 +52,7 @@ std::vector<ui::FluentMenuItem> TrayMenuItems(AppState &s) {
         items.push_back(std::move(item));
     };
     add(1, I::Open, L"\xE8E5");
-    add(3, I::ActNewWindow, L"", P::WindowNew);
+    add(3, I::OpenNewTab, L"", P::WindowNew);
     add(0, I::SettingsSecArrangeWindows, L"", P::WindowOverview);
     auto &arrange = items.back();
     // Tray arrangement includes hidden/minimized windows, just like its command.
@@ -118,16 +118,10 @@ void ShowWindowManagementMenu(AppState &s, POINT screen) {
         item.shortcut = app::ShownShortcut(key);
         items.push_back(std::move(item));
     };
-    add(1, l10n::StringId::ActNewWindow, L"\xE78B", L"Ctrl+N");
+    add(1, l10n::StringId::OpenNewTab, L"\xE78B", L"Ctrl+N");
     items.back().pictogram = ui::fluent::MenuPictogram::WindowNew;
     add(2, l10n::StringId::WindowOverviewTitle, L"\xE8A9", L"Ctrl+Shift+O");
     items.back().pictogram = ui::fluent::MenuPictogram::WindowOverview;
-    add(3, l10n::StringId::ActTabToWindow, L"\xE8A7", L"Ctrl+Shift+M");
-    items.back().pictogram = ui::fluent::MenuPictogram::WindowDetach;
-    items.back().enabled = s.window_tabs.items.size() > 1;
-    if (auto *tab = ActiveTab(s))
-        items.back().text += L" · " + app::TabTitle(tab->current_path);
-    items.back().separator_after = true;
     ui::FluentMenuItem heading;
     heading.heading = true;
     heading.text = l10n::Get(l10n::StringId::SettingsSecArrangeWindows);
@@ -166,8 +160,6 @@ void ShowWindowManagementMenu(AppState &s, POINT screen) {
         PostMessageW(s.hwnd, WM_NEW_WINDOW, 0, 0);
     else if (cmd == 2)
         ToggleWindowOverview(s);
-    else if (cmd == 3)
-        PostMessageW(s.hwnd, WM_MOVE_TAB_TO_NEW_WINDOW, 0, 0);
     else if (cmd == 18)
         MergeAllWindows(s);
     else if (cmd >= 10 && cmd < 18)

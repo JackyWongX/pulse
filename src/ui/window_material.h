@@ -70,9 +70,10 @@ public:
     void Invalidate();
 
     ID2D1Bitmap* SourceBitmap(const std::wstring& path);
-    // blur_px > 0 paints a Gaussian-blurred cover baked once per path/size/radius.
+    // opacity multiplies the source alpha; blur_px > 0 paints a blurred cover.
     bool DrawSourceCover(ID2D1DeviceContext* dc, const D2D1_RECT_F& dest,
-                         const std::wstring& path, float blur_px = 0.0f);
+                         const std::wstring& path, float blur_px = 0.0f,
+                         float opacity = 1.0f);
 
     // Paints the sampled material. Returns false when there is nothing to sample
     // (no path, None, high contrast, or decode failure) so the caller can use DWM.

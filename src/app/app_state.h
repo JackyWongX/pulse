@@ -554,6 +554,9 @@ struct AppState : AppCoreOwner {
     bool shot_high_contrast = false;
 
     HWND hwndAddressEdit = nullptr;
+    HWND hwndAccentHexEdit = nullptr;
+    bool accentHexEditing = false;
+    bool accentHexIgnoreKillFocus = false;
     std::shared_ptr<AddressPathOpen> addressPathOpen;
     bool addressEditing = false;
     bool addressSearching = false;

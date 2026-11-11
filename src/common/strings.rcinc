@@ -1399,7 +1399,7 @@ BEGIN
     IDS_COPY_TO_WINDOW "复制到窗口"
     IDS_MOVE_TO_WINDOW "移动到窗口"
     IDS_SETTINGS_EXTERNAL_OPEN "从其他程序打开的文件夹"
-    IDS_SETTINGS_EXTERNAL_OPEN_DESC "智能：正在用的窗口不打断，改开新窗口；已开的文件夹直接切过去"
+    IDS_SETTINGS_EXTERNAL_OPEN_DESC "从其他程序打开的文件夹始终在唯一的主窗口中作为新页签打开"
     IDS_EXTERNAL_OPEN_SMART "智能"
     IDS_EXTERNAL_OPEN_TAB "标签页"
     IDS_EXTERNAL_OPEN_WINDOW "新窗口"
@@ -5092,6 +5092,10 @@ BEGIN
     IDS_ARCHIVE_PLUGIN_REQUIRED "需要压缩包插件。请安装并启用支持此格式的原生增强包。"
     IDS_ARCHIVE_PLUGIN_MIGRATION_TITLE "压缩包增强功能已迁移"
     IDS_ARCHIVE_PLUGIN_MIGRATION_BODY "旧的 7-Zip 下载包已停用。请安装并启用压缩包原生增强包以预览和解压 7z、RAR；内置 ZIP 功能不受影响。"
+    IDS_SETTINGS_INVALID_HEX_COLOR "请输入有效的颜色值，例如 #RRGGBB。"
+    IDS_SETTINGS_HEX_EDITOR_UNAVAILABLE "无法打开颜色输入框。"
+    IDS_TOOLBAR_ROWS_EXPAND "展开工具栏和窗格标题"
+    IDS_TOOLBAR_ROWS_COLLAPSE "折叠工具栏和窗格标题"
 END
 
 LANGUAGE 0x09, 0x01
@@ -6490,7 +6494,7 @@ BEGIN
     IDS_COPY_TO_WINDOW "Copy to window"
     IDS_MOVE_TO_WINDOW "Move to window"
     IDS_SETTINGS_EXTERNAL_OPEN "Folders opened from other apps"
-    IDS_SETTINGS_EXTERNAL_OPEN_DESC "Smart: a window in use is left alone and a new one opens; an open folder comes forward"
+    IDS_SETTINGS_EXTERNAL_OPEN_DESC "Folders opened from other apps always open in a new tab in the single main window"
     IDS_EXTERNAL_OPEN_SMART "Smart"
     IDS_EXTERNAL_OPEN_TAB "Tab"
     IDS_EXTERNAL_OPEN_WINDOW "New window"
@@ -10183,6 +10187,10 @@ BEGIN
     IDS_ARCHIVE_PLUGIN_REQUIRED "An archive plugin is required. Install and enable a native extension supporting this format."
     IDS_ARCHIVE_PLUGIN_MIGRATION_TITLE "Archive features have moved to plugins"
     IDS_ARCHIVE_PLUGIN_MIGRATION_BODY "The old 7-Zip download pack is retired. Install and enable the native archive extension to preview and extract 7z and RAR files. Built-in ZIP features remain available."
+    IDS_SETTINGS_INVALID_HEX_COLOR "Enter a valid color value, for example #RRGGBB."
+    IDS_SETTINGS_HEX_EDITOR_UNAVAILABLE "Unable to open the color input field."
+    IDS_TOOLBAR_ROWS_EXPAND "Expand the toolbar and pane headers"
+    IDS_TOOLBAR_ROWS_COLLAPSE "Collapse the toolbar and pane headers"
 END
 
 // Traditional Chinese (Taiwan), generated from the Simplified entries above.

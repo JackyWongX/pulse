@@ -5110,5 +5110,9 @@
 #define IDS_ARCHIVE_PLUGIN_REQUIRED                                                      6388
 #define IDS_ARCHIVE_PLUGIN_MIGRATION_TITLE                                               6389
 #define IDS_ARCHIVE_PLUGIN_MIGRATION_BODY                                                6390
+#define IDS_SETTINGS_INVALID_HEX_COLOR                                                   6391
+#define IDS_SETTINGS_HEX_EDITOR_UNAVAILABLE                                              6392
+#define IDS_TOOLBAR_ROWS_EXPAND                                                          6393
+#define IDS_TOOLBAR_ROWS_COLLAPSE                                                        6394
 
 #endif  // PULSE_STRING_IDS_H

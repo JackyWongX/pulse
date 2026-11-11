@@ -13,6 +13,9 @@ void PlaceHostedEdit(HWND hwnd, HWND owner, const D2D1_RECT_F& cell, float scale
                             int left_margin_dip, int right_margin_dip);
 HWND CreateHostedEdit(AppState& s, SUBCLASSPROC proc);
 void LayoutAddressEditor(AppState& s);
+void LayoutAccentHexEditor(AppState& s);
+void ShowAccentHexEditor(AppState& s);
+void HideAccentHexEditor(AppState& s, bool commit);
 void EnsureEditVisuals(AppState& s);
 void ShowAddressEditor(AppState& s);
 void HideAddressEditor(AppState& s, bool navigate);
@@ -73,4 +76,6 @@ LRESULT CALLBACK RenameEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
                                        UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData);
 LRESULT CALLBACK TagRenameEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
                                           UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData);
+LRESULT CALLBACK AccentHexEditProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
+                                   UINT_PTR /*uIdSubclass*/, DWORD_PTR dwRefData);
 } // namespace pulse

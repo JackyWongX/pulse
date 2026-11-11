@@ -274,7 +274,15 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
                 wchar_t hex[16]{};
                 swprintf_s(hex,L"#%02X%02X%02X",static_cast<unsigned>(std::lround(current.r*255)),
                     static_cast<unsigned>(std::lround(current.g*255)),static_cast<unsigned>(std::lround(current.b*255)));
-                painter_.DrawText(hex,D2D1::RectF(chip.right+10*scale_,swatch.top+6*scale_,swatch.right,swatch.bottom),compositor_->TextFormat(),theme.text);
+                MakeBrush(dc,theme.fill_input,brFillInput_);
+                FillRoundedRect(dc,brFillInput_.get(),lay.accent_custom_hex.left,lay.accent_custom_hex.top,
+                    lay.accent_custom_hex.right-lay.accent_custom_hex.left,
+                    lay.accent_custom_hex.bottom-lay.accent_custom_hex.top,6*scale_);
+                MakeBrush(dc,theme.stroke_card,brStrokeCard_);
+                dc->DrawRoundedRectangle(D2D1::RoundedRect(lay.accent_custom_hex,6*scale_,6*scale_),brStrokeCard_.get(),scale_);
+                if(!vm.settings_accent_hex_edit_visible)
+                    painter_.DrawText(hex,D2D1::RectF(lay.accent_custom_hex.left+8*scale_,lay.accent_custom_hex.top,
+                        lay.accent_custom_hex.right-6*scale_,lay.accent_custom_hex.bottom),compositor_->TextFormat(),theme.text);
             }
             const I names[]={I::AccentHue,I::AccentSaturation,I::AccentLightness};
             for(int i=0;i<3;++i) {
@@ -395,7 +403,8 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
         FillRoundedRect(dc, brFillHover_.get(), preview.left, preview.top,
                         preview.right - preview.left, preview.bottom - preview.top, 6.0f * scale_);
         if (!vm.background_image.empty())
-            material_.DrawSourceCover(dc, preview, vm.background_image);
+            material_.DrawSourceCover(dc, preview, vm.background_image, 0.0f,
+                                      WallpaperImageOpacity(vm.wallpaper_look));
         MakeBrush(dc, theme.stroke_card, brStrokeCard_);
         dc->DrawRoundedRectangle(D2D1::RoundedRect(preview, 6.0f * scale_, 6.0f * scale_),
                                  brStrokeCard_.get(), 1.0f);
@@ -518,8 +527,9 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
                 text(l10n::Get(kIntegrationCover[i]),D2D1::RectF(r.left+54*scale_,r.top+8*scale_,text_right,r.top+32*scale_));
                 painter_.DrawWrappedCaption(l10n::Get(cover_desc[i]),D2D1::Point2F(r.left+54*scale_,r.top+34*scale_),text_right-r.left-54*scale_,theme.text_secondary);
                 const bool on=i==0 ? vm.settings_integration_folders : i==1 ? vm.settings_integration_this_pc : vm.settings_integration_win_e;
-                const int current=!on ? 0 : i==0 ? 1 : 1+(i==1 ? vm.settings_open_this_pc : vm.settings_open_win_e);
-                const I labels[]={I::SettingsSecExplorer,i==0 ? I::IntegrationHandlerPulse : I::ExternalOpenWindow,I::ExternalOpenTab,I::OpenWindowActivate};
+                const int current=!on ? 0 : i==0 ? 1 : i==2 ? 2 : 1+vm.settings_open_this_pc;
+                const I labels[]={I::SettingsSecExplorer,i==0 ? I::IntegrationHandlerPulse :
+                    i==2 ? I::ExternalOpenTab : I::ExternalOpenWindow,I::ExternalOpenTab,I::OpenWindowActivate};
                 const int count=IntegrationChoiceCount(i);
                 const bool wrapped=count==4 && lay.integration_segments[i][2].top>lay.integration_segments[i][0].top;
                 const int columns=wrapped ? 2 : count;
@@ -531,8 +541,8 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
                 if(current>=0 && current<count) DrawSettingsSegmentPlate(130000+i*3+(wrapped ? 1+current/columns : 0),current,lay.integration_segments[i][current],master_on);
                 for(int j=0;j<count;++j) {
                     fluent::SegmentedItemSpec item{};item.bounds=lay.integration_segments[i][j];item.text=l10n::Get(labels[j]);
-                    item.state.enabled=master_on;item.state.checked=current==j;item.suppress_plate=item.state.checked;
-                    item.state.hovered=master_on && IsHovered(vm,H::SettingsIntegration,20+i*3+j);
+                    item.state.enabled=master_on && (i!=2 || j==0 || j==2);item.state.checked=current==j;item.suppress_plate=item.state.checked;
+                    item.state.hovered=item.state.enabled && IsHovered(vm,H::SettingsIntegration,20+i*3+j);
                     item.shared_track=true;item.position=j%columns==0 ? fluent::SegmentPosition::First : j%columns==columns-1 ? fluent::SegmentPosition::Last : fluent::SegmentPosition::Middle;
                     painter_.DrawSegmentedItem(item);
                 }
@@ -677,10 +687,10 @@ void MainRenderer::DrawSettingsCore(const WindowViewModel& vm, const D2D1_RECT_F
         segmented(lay.startup_open_card,lay.startup_open_row,startup_open,two_values,vm.settings_startup_open,H::SettingsStartupOpen,I::SettingsStartupOpen,I::SettingsStartupOpenDesc,2,L"\xE81C");
         const I new_tab_open[]={I::NewTabOpenCurrent,I::OpenDefaultLocation};
         segmented(lay.new_tab_open_card,lay.new_tab_open_row,new_tab_open,two_values,vm.settings_new_tab_open,H::SettingsNewTabOpen,I::SettingsNewTabOpen,I::SettingsNewTabOpenDesc,2,L"\xECCD");
-        const I external_open[]={I::ExternalOpenSmart,I::ExternalOpenTab,I::ExternalOpenWindow};const int external_values[]={0,1,2};
-        segmented(lay.external_open_card,lay.external_open_row,external_open,external_values,vm.settings_external_open,H::SettingsExternalOpen,I::SettingsExternalOpen,I::SettingsExternalOpenDesc,3,L"\xE8AD");
-        const I open_pulse_icon_labels[]={I::ExternalOpenWindow,I::ExternalOpenTab,I::OpenWindowActivate}; const int open_pulse_icon_values[]={0,1,2};
-        segmented(lay.open_pulse_icon_card,lay.open_pulse_icon_row,open_pulse_icon_labels,open_pulse_icon_values,vm.settings_open_pulse_icon,H::SettingsOpenPulseIcon,I::SettingsOpenPulseIcon,I::SettingsOpenPulseIconDesc,3);
+        label(lay.external_open_card,l10n::Get(I::SettingsExternalOpen),
+            l10n::Get(I::SettingsExternalOpenDesc),L"\xE8AD");
+        const I open_pulse_icon_labels[]={I::ExternalOpenTab,I::OpenWindowActivate}; const int open_pulse_icon_values[]={1,2};
+        segmented(lay.open_pulse_icon_card,lay.open_pulse_icon_row,open_pulse_icon_labels,open_pulse_icon_values,vm.settings_open_pulse_icon,H::SettingsOpenPulseIcon,I::SettingsOpenPulseIcon,I::SettingsOpenPulseIconDesc,2);
         const I new_window_shows_labels[]={I::OpenWindowStartup,I::OpenWindowThisPc,I::NewTabOpenCurrent}; const int new_window_shows_values[]={0,1,2};
         segmented(lay.new_window_shows_card,lay.new_window_shows_row,new_window_shows_labels,new_window_shows_values,vm.settings_new_window_shows,H::SettingsNewWindowShows,I::SettingsNewWindowShows,I::SettingsNewWindowShowsDesc,3);
         toggle(lay.arrange_minimized_row,I::SettingsArrangeMinimized,I::SettingsArrangeMinimizedDesc,L"\xE921",vm.settings_arrange_include_minimized,81);
