@@ -1,3 +1,4 @@
+#include "tab_width_fit.h"
 #include "pane_header_icons.h"
 #include "tab_rows_layout.h"
 #include "tab_pager_layout.h"
@@ -149,6 +150,7 @@ void MainRenderer::SetIconNotifyWindow(HWND hwnd) {
     // The caches may be shared by every Pulse window (RenderCaches): each
     // renderer registers its own window and leaves the others in place.
     if (notify_hwnd_ && notify_hwnd_ != hwnd) {
+        ReleaseWallViews();
         icon_cache_.RemoveNotifyWindow(notify_hwnd_);
         open_with_icons_.RemoveNotifyWindow(notify_hwnd_);
         thumbnail_cache_.RemoveNotifyWindow(notify_hwnd_);
@@ -2375,6 +2377,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
     // ---- Tab motion bookkeeping: which tabs appeared or went away. ----
     const uint64_t tnow = motion_now_;
     const bool tabDragging = dragI >= 0;
+    const bool stripMotion = TabStripMotionSupported(!strip.item_rects.empty(), vm.tab_layout);
     bool tabMoving = false;
     {
         std::vector<uintptr_t> ids;
@@ -2384,7 +2387,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         std::sort(ids.begin(), ids.end());
         if (ids != tab_ids_prev_) {
             const bool primed = !tab_ids_prev_.empty() && !tabDragging;
-            if (primed) tab_anim_on_ = motion::SystemAnimationsEnabled();
+            tab_anim_on_ = motion::SystemAnimationsEnabled();
             if (primed && tab_anim_on_) {
                 for (uintptr_t id : ids)
                     if (!std::binary_search(tab_ids_prev_.begin(), tab_ids_prev_.end(), id))
@@ -2419,7 +2422,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         const float w = strip.Width(vm, i);
         if (vm.tabs[i].id) {
             TabSlotMotion& m = tab_slots_[vm.tabs[i].id];
-            if (!tabDragging && strip.item_rects.empty()) {
+            if (!tabDragging && stripMotion) {
                 m.rect.SetAnimationsEnabled(tab_anim_on_);
                 const D2D1_RECT_F r = m.rect.Update(1, static_cast<int64_t>(tab_gen_),
                     D2D1::RectF(left, 0.0f, left + w, 1.0f), motion_frame_, tnow, motion::spring::Smooth);
@@ -2428,7 +2431,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             }
             m.seen = motion_frame_;
             m.last = D2D1::RectF(left, tabY, left + w, tabY + tabH);
-            m.title = vm.tabs[i].title;
+            if (m.title != vm.tabs[i].title) m.title = vm.tabs[i].title;
         }
         lefts[i] = left;
         if (vm.tabs[i].active) activeI = static_cast<int>(i);
@@ -2438,7 +2441,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         const float left = lefts[i];
         const auto it = vm.tabs[i].id ? tab_slots_.find(vm.tabs[i].id) : tab_slots_.end();
         const uint64_t born = it != tab_slots_.end() ? it->second.born : 0;
-        if (strip.item_rects.empty() && born && tnow - born < popMs) {
+        if (stripMotion && born && tnow - born < popMs) {
             tabMoving = true;
             const float p = motion::SpringProgress(motion::spring::Pop, static_cast<float>(tnow - born));
             const float alpha = (std::clamp)(p, 0.0f, 1.0f);
@@ -2467,7 +2470,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
     // under the other tabs, at rest on top as before.
     bool plateGliding = false;
     D2D1_RECT_F plateRc{};
-    if (strip.item_rects.empty() && activeI >= 0 && !tabDragging && vm.tabs[static_cast<size_t>(activeI)].id) {
+    if (stripMotion && activeI >= 0 && !tabDragging && vm.tabs[static_cast<size_t>(activeI)].id) {
         const size_t i = static_cast<size_t>(activeI);
         const float w = strip.Width(vm, i);
         tab_plate_.SetAnimationsEnabled(tab_anim_on_);
@@ -2480,6 +2483,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
             drawTab(i, plateRc.left, false, 1, plateRc.right - plateRc.left);
         }
     }
+    if (!stripMotion || tabDragging || activeI < 0) tab_plate_.Hide();
     for (size_t i = 0; i < vm.tabs.size(); ++i) {
         if (vm.tabs[i].hidden) continue;
         if (inDragRun(static_cast<int>(i))) continue;
@@ -2489,7 +2493,7 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
     if (activeI >= 0 && !inDragRun(activeI) && !vm.tabs[static_cast<size_t>(activeI)].hidden)
         drawSlot(static_cast<size_t>(activeI), plateGliding ? 2 : 0);
     // Closed tabs fade and shrink to .88 in place (120 ms, ease-in).
-    if (!strip.item_rects.empty()) tab_ghosts_.clear();
+    if (!stripMotion) tab_ghosts_.clear();
     for (auto it = tab_ghosts_.begin(); it != tab_ghosts_.end();) {
         const float e = static_cast<float>(tnow - it->start) / 120.0f;
         if (e >= 1.0f) { it = tab_ghosts_.erase(it); continue; }
@@ -2656,11 +2660,12 @@ void MainRenderer::DrawTitleBar(const WindowViewModel& vm, const D2D1_RECT_F& re
         for (const int direction : {-1, 1}) {
             const float ax = direction < 0 ? strip.view_left - strip.arrow_w : strip.view_right;
             const bool enabled = direction < 0 ? strip.scroll > 0.5f : strip.scroll < strip.max_scroll - 0.5f;
-            const bool hot = enabled && IsHovered(vm, HitTestResult::TabScroll, direction);
+            if (!enabled) continue; // Keep the slot, but hide arrows at either endpoint.
+            const bool hot = IsHovered(vm, HitTestResult::TabScroll, direction);
             DrawButton(D2D1::RectF(ax, tabY, ax + strip.arrow_w, tabY + tabH), theme,
                        hot ? theme.fill_hover : kTransparent,
                        direction < 0 ? kIconChevronLeft : kIconChevronRight, direction < 0 ? L"<" : L">",
-                       enabled ? theme.text_secondary : WithAlpha(theme.text_secondary, theme.text_secondary.a * 0.35f),
+                       theme.text_secondary,
                        true, true, 0.7f);
         }
     }
