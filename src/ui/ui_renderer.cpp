@@ -1376,6 +1376,9 @@ void MainRenderer::Render(const WindowViewModel& vm, const D2D1_RECT_F& rect,
     if (embedded_) {
         // The host window owns the backdrop; only the shared sheet is tinted.
     } else if (image_mode) {
+        // Keep the window opaque; image transparency should reveal the theme, not the desktop.
+        MakeBrush(dc, theme.bg, brBg_);
+        dc->FillRectangle(rect, brBg_.get());
         backdrop_drawn = material_.DrawSourceCover(dc, rect, vm.background_image,
                                                    WallpaperBlurDip(vm.wallpaper_blur) * scale_,
                                                    WallpaperImageOpacity(vm.wallpaper_look));
